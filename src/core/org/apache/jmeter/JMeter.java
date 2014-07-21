@@ -18,35 +18,7 @@
 
 package org.apache.jmeter;
 
-import java.awt.event.ActionEvent;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.lang.Thread.UncaughtExceptionHandler;
-import java.net.Authenticator;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.SocketException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Properties;
-import java.util.StringTokenizer;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.swing.JTree;
-import javax.swing.tree.TreePath;
-
+import com.thoughtworks.xstream.converters.ConversionException;
 import org.apache.commons.cli.avalon.CLArgsParser;
 import org.apache.commons.cli.avalon.CLOption;
 import org.apache.commons.cli.avalon.CLOptionDescriptor;
@@ -91,7 +63,19 @@ import org.apache.jorphan.util.JMeterException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
-import com.thoughtworks.xstream.converters.ConversionException;
+import javax.swing.*;
+import javax.swing.tree.TreePath;
+import java.awt.event.ActionEvent;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.net.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Main JMeter class; processes options and starts the GUI, non-GUI or server as appropriate.
@@ -815,13 +799,52 @@ public class JMeter implements JMeterPlugin {
                         println("Failed to configure "+el);
                     }
                 }
-                if (engines.isEmpty()) {
-                    println("No remote engines were started.");
-                    return;
+
+
+                String rmiContinueOnFail = EngineReInitializer.getRmiContinueOnFailName();
+                boolean rmiContinueOnFail_Bool = JMeterUtils.getPropDefault(rmiContinueOnFail, true);
+
+                String rmiRetriesNumber = EngineReInitializer.getRmiRetriesNumberName();
+
+                String rmiRetriesDelay = EngineReInitializer.getRmiRetriesDelayName();
+//                Thread.sleep(10000);
+
+                String rmiRetriesDelay_Str = String.valueOf(EngineReInitializer.getRmiRetriesDelayValue());
+                String rmiRetriesNumber_Str = String.valueOf(EngineReInitializer.getRmiRetriesNumberValue());
+                String rmiContinueOnFail_Str = String.valueOf(rmiContinueOnFail_Bool);
+
+                if (failingEngines.size() > 0) {
+                    if (!rmiContinueOnFail_Bool) {
+                        throw new IllegalArgumentException("The following remote engines could not be configured:" + failingEngines);
+                    } else {
+                        println("Number of failed remote engines: " + failingEngines.size());
+                        println(EngineReInitializer.class.getSimpleName() + " parameters:");
+                        println(rmiContinueOnFail + "=" + rmiContinueOnFail_Str);
+                        println(rmiRetriesDelay + "=" + rmiRetriesDelay_Str);
+                        println(rmiRetriesNumber + "=" + rmiRetriesNumber_Str);
+
+                        println("Trying to reconnect to failed engines...");
+
+                        int reConSuccessEng = 0;
+                        for (String engine : failingEngines) {
+                            EngineReInitializer engineReInitializer = new EngineReInitializer(engine, tree);
+                            engineReInitializer.start();
+                            engineReInitializer.join();
+                            JMeterEngine eng = engineReInitializer.getEngine();
+
+                            if (null != eng) {
+                                reConSuccessEng++;
+                                engines.add(eng);
+                            }
+                        }
+                        String failedReConEng = String.valueOf(Math.abs(failingEngines.size() - reConSuccessEng));
+                        println("Successfully re-connected to " + String.valueOf(reConSuccessEng) + " engines");
+                        log.debug("Successfully re-connected to " + String.valueOf(reConSuccessEng) + " engines");
+                        println("Failed to re-connect to " + failedReConEng + " engines");
+                        log.debug("Successfully re-connected to " + failedReConEng + " engines");
+                    }
                 }
-                if(failingEngines.size()>0) {
-                    throw new IllegalArgumentException("The following remote engines could not be configured:"+failingEngines);
-                }
+
                 println("Starting remote engines");
                 log.info("Starting remote engines");
                 long now=System.currentTimeMillis();

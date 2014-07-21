@@ -926,7 +926,7 @@ run JMeter unless all the JMeter jars are added.
         <attribute name="Specification-Vendor" value=" Apache Software Foundation"/>
         <attribute name="Implementation-Vendor" value=" Apache Software Foundation"/>
         <attribute name="Implementation-Vendor-Id" value=" org.apache"/>
-        <attribute name="Implementation-Version" value="${implementation.version}"/>
+        <attribute name="Implementation-Version" value="${implementation.version}-BZM"/>
         <attribute name="X-Compile-Source-JDK" value="${src.java.version}"/>
         <attribute name="X-Compile-Target-JDK" value="${target.java.version}"/>
     </manifest>
@@ -938,7 +938,7 @@ run JMeter unless all the JMeter jars are added.
        <attribute name="Specification-Vendor" value=" Apache Software Foundation"/>
        <attribute name="Implementation-Vendor" value=" Apache Software Foundation"/>
        <attribute name="Implementation-Vendor-Id" value=" org.apache"/>
-       <attribute name="Implementation-Version" value="${implementation.version}"/>
+        <attribute name="Implementation-Version" value="${implementation.version}-BZM"/>
    </manifest>
 
     <mkdir dir="${dest.jar}"/>
