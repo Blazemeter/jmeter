@@ -18,6 +18,13 @@
 
 package org.apache.jmeter.engine;
 
+import org.apache.jmeter.services.FileServer;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.collections.HashTree;
+import org.apache.jorphan.logging.LoggingManager;
+import org.apache.log.Logger;
+
 import java.io.File;
 import java.net.MalformedURLException;
 import java.rmi.Naming;
@@ -27,13 +34,6 @@ import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
 import java.util.Properties;
 
-import org.apache.jmeter.services.FileServer;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.util.JMeterUtils;
-import org.apache.jorphan.collections.HashTree;
-import org.apache.jorphan.logging.LoggingManager;
-import org.apache.log.Logger;
-
 /**
  * Class to run remote tests from the client JMeter and collect remote samples
  */
@@ -41,31 +41,46 @@ public class ClientJMeterEngine implements JMeterEngine {
     private static final Logger log = LoggingManager.getLoggerForClass();
 
     private static final Object LOCK = new Object();
-
-    private RemoteJMeterEngine remote;
-
-    private HashTree test;
-
     private final String host;
-
-    private static RemoteJMeterEngine getEngine(String h) throws MalformedURLException, RemoteException,
-            NotBoundException {
-       final String name = "//" + h + "/" + RemoteJMeterEngineImpl.JMETER_ENGINE_RMI_NAME; // $NON-NLS-1$ $NON-NLS-2$
-       Remote remobj = Naming.lookup(name);
-       if (remobj instanceof RemoteJMeterEngine){
-           final RemoteJMeterEngine rje = (RemoteJMeterEngine) remobj;
-           if (remobj instanceof RemoteObject){
-               RemoteObject robj = (RemoteObject) remobj;
-               System.out.println("Using remote object: "+robj.getRef().remoteToString());
-           }
-           return rje;
-       }
-       throw new RemoteException("Could not find "+name);
-    }
+    private RemoteJMeterEngine remote;
+    private HashTree test;
+    private Properties savep;
 
     public ClientJMeterEngine(String host) throws MalformedURLException, NotBoundException, RemoteException {
         this.remote = getEngine(host);
         this.host = host;
+    }
+
+    private static RemoteJMeterEngine getEngine(String h) throws MalformedURLException, RemoteException,
+            NotBoundException {
+        final String name = "//" + h + "/" + RemoteJMeterEngineImpl.JMETER_ENGINE_RMI_NAME; // $NON-NLS-1$ $NON-NLS-2$
+        Remote remobj = Naming.lookup(name);
+        if (remobj instanceof RemoteJMeterEngine) {
+            final RemoteJMeterEngine rje = (RemoteJMeterEngine) remobj;
+            if (remobj instanceof RemoteObject) {
+                RemoteObject robj = (RemoteObject) remobj;
+                System.out.println("Using remote object: " + robj.getRef().remoteToString());
+            }
+            return rje;
+        }
+        throw new RemoteException("Could not find " + name);
+    }
+
+    /**
+     * Tidy up RMI access to allow JMeter client to exit.
+     * Currently just interrups the "RMI Reaper" thread.
+     *
+     * @param logger where to log the information
+     */
+    public static void tidyRMI(Logger logger) {
+        String reaperRE = JMeterUtils.getPropDefault("rmi.thread.name", "^RMI Reaper$");
+        for (Thread t : Thread.getAllStackTraces().keySet()) {
+            String name = t.getName();
+            if (name.matches(reaperRE)) {
+                logger.info("Interrupting " + name);
+                t.interrupt();
+            }
+        }
     }
 
     /** {@inheritDoc} */
@@ -79,7 +94,7 @@ public class ClientJMeterEngine implements JMeterEngine {
     /** {@inheritDoc} */
     @Override
     public void stopTest(boolean now) {
-        log.info("about to "+(now ? "stop" : "shutdown")+" remote test on "+host);
+        log.info("about to " + (now ? "stop" : "shutdown") + " remote test on "+host);
         try {
             remote.rstopTest(now);
         } catch (Exception ex) {
@@ -87,14 +102,16 @@ public class ClientJMeterEngine implements JMeterEngine {
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void reset() {
         try {
             try {
                 remote.rreset();
             } catch (java.rmi.ConnectException e) {
-                log.info("Retry reset after: "+e);
+                log.info("Retry reset after: " + e);
                 remote = getEngine(host);
                 remote.rreset();
             }
@@ -106,12 +123,12 @@ public class ClientJMeterEngine implements JMeterEngine {
     @Override
     public void runTest() throws JMeterEngineException {
         log.info("running clientengine run method");
-        
+
         // See https://issues.apache.org/bugzilla/show_bug.cgi?id=55510
         JMeterContextService.clearTotalThreads();
         HashTree testTree = test;
 
-        synchronized(testTree) {
+        synchronized (testTree) {
             testTree.traverse(new PreCompiler(true));  // limit the changes to client only test elements
             testTree.traverse(new TurnElementsOn());
             testTree.traverse(new ConvertListeners());
@@ -122,62 +139,47 @@ public class ClientJMeterEngine implements JMeterEngine {
             JMeterContextService.startTest();
             /*
              * Add fix for Deadlocks, see:
-             * 
+             *
              * See https://issues.apache.org/bugzilla/show_bug.cgi?id=48350
             */
             File baseDirRelative = FileServer.getFileServer().getBaseDirRelative();
             String scriptName = FileServer.getFileServer().getScriptName();
-            synchronized(LOCK)
-            {
-                methodName="rconfigure()";
+            synchronized (LOCK) {
+                methodName = "rconfigure()";
                 remote.rconfigure(testTree, host, baseDirRelative, scriptName);
             }
-            log.info("sent test to " + host + " basedir='"+baseDirRelative+"'"); // $NON-NLS-1$
-            if(savep == null) {
+            log.info("sent test to " + host + " basedir='" + baseDirRelative + "'"); // $NON-NLS-1$
+            if (savep == null) {
                 savep = new Properties();
             }
-            log.info("Sending properties "+savep);
+            log.info("Sending properties " + savep);
             try {
-                methodName="rsetProperties()";
+                methodName = "rsetProperties()";
                 remote.rsetProperties(savep);
             } catch (RemoteException e) {
                 log.warn("Could not set properties: " + e.toString());
             }
-            methodName="rrunTest()";
+            methodName = "rrunTest()";
             remote.rrunTest();
-            log.info("sent run command to "+ host);
+            log.info("sent run command to " + host);
         } catch (IllegalStateException ex) {
-            log.error("Error in "+methodName+" method "+ex); // $NON-NLS-1$ $NON-NLS-2$
+            log.error("Error in " + methodName + " method " + ex); // $NON-NLS-1$ $NON-NLS-2$
             tidyRMI(log);
             throw ex; // Don't wrap this error - display it as is
         } catch (Exception ex) {
-            log.error("Error in "+methodName+" method "+ex); // $NON-NLS-1$ $NON-NLS-2$
+            log.error("Error in " + methodName + " method " + ex); // $NON-NLS-1$ $NON-NLS-2$
             tidyRMI(log);
-            throw new JMeterEngineException("Error in "+methodName+" method "+ex, ex); // $NON-NLS-1$ $NON-NLS-2$
+            throw new JMeterEngineException("Error in " + methodName + " method " + ex, ex); // $NON-NLS-1$ $NON-NLS-2$
         }
     }
 
     /**
-     * Tidy up RMI access to allow JMeter client to exit.
-     * Currently just interrups the "RMI Reaper" thread.
-     * @param logger where to log the information
+     * {@inheritDoc}
      */
-    public static void tidyRMI(Logger logger) {
-        String reaperRE = JMeterUtils.getPropDefault("rmi.thread.name", "^RMI Reaper$");
-        for(Thread t : Thread.getAllStackTraces().keySet()){
-            String name = t.getName();
-            if (name.matches(reaperRE)) {
-                logger.info("Interrupting "+name);
-                t.interrupt();
-            }
-        }
-    }
-
-    /** {@inheritDoc} */
     // Called by JMeter ListenToTest if remoteStop is true
     @Override
     public void exit() {
-        log.info("about to exit remote server on "+host);
+        log.info("about to exit remote server on " + host);
         try {
             remote.rexit();
         } catch (RemoteException e) {
@@ -185,7 +187,6 @@ public class ClientJMeterEngine implements JMeterEngine {
         }
     }
 
-    private Properties savep;
     /** {@inheritDoc} */
     @Override
     public void setProperties(Properties p) {
@@ -196,5 +197,10 @@ public class ClientJMeterEngine implements JMeterEngine {
     @Override
     public boolean isActive() {
         return true;
+    }
+
+
+    public String getHost() {
+        return host;
     }
 }
