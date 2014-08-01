@@ -70,25 +70,19 @@ public class EngineReInitializer extends Thread {
         for (String engine : failedEnginesStr) {
             try {
                 sleep(rmiRetriesDelay);
-                log.debug(String.valueOf(attemptNumber) + "/"
-                        + String.valueOf(rmiRetriesNumber) + " retry to connect to " + engine + "...");
-                System.err.println(String.valueOf(attemptNumber) + "/"
+                log.warn(String.valueOf(attemptNumber) + "/"
                         + String.valueOf(rmiRetriesNumber) + " retry to connect to " + engine + "...");
 
 
                 jMeterEngine = new ClientJMeterEngine(engine);
 
-                log.debug("Successfull re-connection with " + String.valueOf(attemptNumber) + "/"
-                    + String.valueOf(rmiRetriesNumber) + " retry");
-                System.err.println("Successfull re-connection with " + String.valueOf(attemptNumber) + "/"
+                log.warn("Successfull re-connection with " + String.valueOf(attemptNumber) + "/"
                     + String.valueOf(rmiRetriesNumber) + " retry");
                 jMeterEngine.configure(this.tree);
                 engineList.add(jMeterEngine);
             } catch (Exception e) {
-                log.fatalError("Failed to re-connect to remote host " + engine + ": " + String.valueOf(attemptNumber)
+                log.warn("Failed to re-connect to remote host " + engine + ": " + String.valueOf(attemptNumber)
                         + " retry", e);
-                System.err.println("Failed to re-connect to remote host " + engine + ": " + String.valueOf(attemptNumber)
-                        + " retry");
         }
         }
         return;

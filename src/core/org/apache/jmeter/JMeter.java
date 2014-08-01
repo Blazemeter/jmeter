@@ -989,13 +989,13 @@ public class JMeter implements JMeterPlugin {
                     if (!rmiContinueOnFail_Bool) {
                         throw new IllegalArgumentException("The following remote engines could not be configured:" + failingEngines);
                     } else {
-                        println("Number of failed remote engines: " + failingEngines.size());
-                        println(EngineReInitializer.class.getSimpleName() + " parameters:");
-                        println(rmiContinueOnFail + "=" + rmiContinueOnFail_Str);
-                        println(rmiRetriesDelay + "=" + rmiRetriesDelay_Str);
-                        println(rmiRetriesNumberName + "=" + rmiRetriesNumberValue);
+                        log.info("Number of failed remote engines: " + failingEngines.size());
+                        log.info(EngineReInitializer.class.getSimpleName() + " parameters:");
+                        log.info(rmiContinueOnFail + "=" + rmiContinueOnFail_Str);
+                        log.info(rmiRetriesDelay + "=" + rmiRetriesDelay_Str);
+                        log.info(rmiRetriesNumberName + "=" + rmiRetriesNumberValue);
 
-                        println("Trying to reconnect to failed engines...");
+                        log.info("Trying to reconnect to failed engines...");
 
                         int reConSuccessEng = 0;
                         int attempts = Integer.parseInt(rmiRetriesNumberValue);
@@ -1014,15 +1014,14 @@ public class JMeter implements JMeterPlugin {
                         }
 
                         if (reConSuccessEng > 0) {
-                            println("Successfully re-connected to " + String.valueOf(reConSuccessEng) + " engines");
-                            log.debug("Successfully re-connected to " + String.valueOf(reConSuccessEng) + " engines");
-                            println("Failed to re-connect to " + failingEngines.size() + " engines with " + rmiRetriesNumberValue + " attemts");
+                            log.info("Successfully re-connected to " + String.valueOf(reConSuccessEng) + " engines");
+                            log.info("Failed to re-connect to " + failingEngines.size() + " engines with " + rmiRetriesNumberValue + " attemts");
 
                         } else {
-                            println("Failed to re-connect to " + failingEngines.size() + " engines with " + rmiRetriesNumberValue + " attemts");
-                            println("List of failed engines: ");
+                            log.info("Failed to re-connect to " + failingEngines.size() + " engines with " + rmiRetriesNumberValue + " attemts");
+                            log.info("List of failed engines: ");
                             for (String s : failingEngines) {
-                                println(s);
+                                log.info(s);
                             }
                             return;
                         }
