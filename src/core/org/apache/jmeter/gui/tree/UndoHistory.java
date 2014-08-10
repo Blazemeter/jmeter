@@ -136,7 +136,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
         if (noop()) {
             return;
         }
-        log.debug("Clearing history", new Throwable());
+        log.debug("Clearing undo history", new Throwable());
         history.clear();
         position = INITIAL_POS;
     }
@@ -152,47 +152,46 @@ public class UndoHistory implements TreeModelListener, Serializable {
     void add(JMeterTreeModel treeModel, TreePath path, String comment) {
         // don't add element if we are in the middle of undo/redo or a big loading
         if (noop()) {
+            log.debug("Not adding history because of noop", new Throwable());
             return;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Adding history element", new Throwable());
-        }
-        JMeterTreeNode root = (JMeterTreeNode) ((JMeterTreeNode) treeModel
-                .getRoot());
+        JMeterTreeNode root = (JMeterTreeNode) ((JMeterTreeNode) treeModel.getRoot());
         if (root.getChildCount() < 1) {
+            log.debug("Not adding history because of no children", new Throwable());
             return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Adding history element: " + comment, new Throwable());
         }
 
         working = true;
         // get test plan tree
-        HashTree tree = treeModel.getCurrentSubTree((JMeterTreeNode) treeModel
-                .getRoot());
+        HashTree tree = treeModel.getCurrentSubTree((JMeterTreeNode) treeModel.getRoot());
         // first clone to not convert original tree
         tree = (HashTree) tree.getTree(tree.getArray()[0]).clone();
 
         position++;
         while (history.size() > position) {
-            log.debug("Removing further record, position: " + position
-                    + ", size: " + history.size());
+            log.debug("Removing further record, position: " + position + ", size: " + history.size());
             history.remove(history.size() - 1);
         }
 
-        // convert before clone!
+        // convert before clone
         UndoCommand.convertSubTree(tree);
+        // cloning is required because we need to immute stored data
         TreeCloner cloner = new TreeCloner(false);
         tree.traverse(cloner);
         HashTree copy = cloner.getClonedTree();
 
         history.add(new HistoryItem(copy, path, comment));
 
-        log.debug("Added history element, position: " + position + ", size: "
-                + history.size());
+        log.debug("Added history element, position: " + position + ", size: " + history.size());
         working = false;
     }
 
     public TreePath getRelativeState(int offset, JMeterTreeModel acceptorModel) {
-        log.debug("Moving history from position " + position + " with step "
-                + offset + ", size is " + history.size());
+        log.debug("Moving history from position " + position + " with step " + offset + ", size is " + history.size());
         if (offset < 0 && !canUndo()) {
             log.warn("Can't undo, we're already on the last record");
             return null;
@@ -210,20 +209,16 @@ public class UndoHistory implements TreeModelListener, Serializable {
             acceptorModel.removeTreeModelListener(this);
             working = true;
             try {
-                boolean res = Load.insertLoadedTree(
-                        ActionEvent.ACTION_PERFORMED, newModel);
-                if (!res) {
-                    throw new RuntimeException("Loaded data is not TestPlan");
-                }
-
+                final GuiPackage guiInstance = GuiPackage.getInstance();
+                guiInstance.clearTestPlan();
+                HashTree newTree = guiInstance.addSubTree(newModel);
             } catch (Exception ex) {
                 log.error("Failed to load from history", ex);
             }
             acceptorModel.addTreeModelListener(this);
             working = false;
         }
-        log.debug("Current position " + position + ", size is "
-                + history.size());
+        log.debug("Current position " + position + ", size is " + history.size());
         // select historical path
         return history.get(position).getValue();
     }
@@ -249,21 +244,21 @@ public class UndoHistory implements TreeModelListener, Serializable {
     /**
      *
      */
-    // is there better way to record test plan load events?
-    // currently it records each node added separately
+    // FIXME: is there better way to record test plan load events? currently it records each node added separately
     public void treeNodesInserted(TreeModelEvent tme) {
-        log.debug("Nodes inserted");
+        String name = tme.toString();
+        log.debug("Nodes inserted " + name);
         final JMeterTreeModel sender = (JMeterTreeModel) tme.getSource();
-        add(sender, getTreePathToRecord(tme), "Add");
+        add(sender, getTreePathToRecord(tme), "Add " + name);
     }
 
     /**
      *
      */
     public void treeNodesRemoved(TreeModelEvent tme) {
-        log.debug("Nodes removed");
-        add((JMeterTreeModel) tme.getSource(), getTreePathToRecord(tme),
-                "Remove");
+        String name = tme.toString();
+        log.debug("Nodes removed: " + name);
+        add((JMeterTreeModel) tme.getSource(), getTreePathToRecord(tme), "Remove " + name);
     }
 
     /**
@@ -271,8 +266,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
      */
     public void treeStructureChanged(TreeModelEvent tme) {
         log.debug("Nodes struct changed");
-        add((JMeterTreeModel) tme.getSource(), getTreePathToRecord(tme),
-                "Complex Change");
+        add((JMeterTreeModel) tme.getSource(), getTreePathToRecord(tme), "Complex Change");
     }
 
     /**
@@ -282,8 +276,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
     private TreePath getTreePathToRecord(TreeModelEvent tme) {
         TreePath path;
         if (GuiPackage.getInstance() != null) {
-            path = GuiPackage.getInstance().getMainFrame().getTree()
-                    .getSelectionPath();
+            path = GuiPackage.getInstance().getMainFrame().getTree().getSelectionPath();
         } else {
             path = tme.getTreePath();
         }

@@ -22,6 +22,7 @@ import java.awt.event.ActionEvent;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.swing.*;
 import javax.swing.tree.TreePath;
 
 import org.apache.jmeter.exceptions.IllegalUserActionException;
@@ -56,8 +57,8 @@ public class UndoCommand implements Command {
         // we need to go to recorded tree path
         // fixme: we have a problem with unselected tree item then
         // also the GUI reflects old GUI properties
-        //final JTree tree = GuiPackage.getInstance().getMainFrame().getTree();
-        //tree.setSelectionPath(path);
+        final JTree tree = GuiPackage.getInstance().getMainFrame().getTree();
+        tree.setSelectionPath(path);
         guiPackage.updateCurrentGui();
         guiPackage.getMainFrame().repaint();
     }

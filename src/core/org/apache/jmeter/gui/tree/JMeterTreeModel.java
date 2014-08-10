@@ -50,7 +50,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
     }
 
     public JMeterTreeModel() {
-        this(new TestPlanGui().createTestElement(),new WorkBenchGui().createTestElement());
+        this(new TestPlanGui().createTestElement(), new WorkBenchGui().createTestElement());
 //        super(new JMeterTreeNode(new WorkBenchGui().createTestElement(), null));
 //        TestElement tp = new TestPlanGui().createTestElement();
 //        initTree(tp);
@@ -59,12 +59,12 @@ public class JMeterTreeModel extends DefaultTreeModel {
     /**
      * Hack to allow TreeModel to be used in non-GUI and headless mode.
      *
-     * @deprecated - only for use by JMeter class!
      * @param o - dummy
+     * @deprecated - only for use by JMeter class!
      */
     @Deprecated
     public JMeterTreeModel(Object o) {
-        this(new TestPlan(),new WorkBench());
+        this(new TestPlan(), new WorkBench());
 //      super(new JMeterTreeNode(new WorkBench(), null));
 //      TestElement tp = new TestPlan();
 //      initTree(tp, new WorkBench());
@@ -130,7 +130,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
             guicomp.configure(component);
             guicomp.modifyTestElement(component);
             guiPackage.getCurrentGui(); // put the gui object back
-                                        // to the way it was.
+            // to the way it was.
         }
         JMeterTreeNode newNode = new JMeterTreeNode(component, this);
 
@@ -138,7 +138,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
         // disable the loaded node
         try {
             newNode.setEnabled(component.isEnabled());
-        } catch (Exception e) { // TODO - can this eever happen?
+        } catch (Exception e) { // TODO - can this ever happen?
             newNode.setEnabled(true);
         }
 
@@ -198,7 +198,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
 
     /**
      * Clear the test plan, and use default node for test plan and workbench.
-     *
+     * <p/>
      * N.B. Should only be called by {@link GuiPackage#clearTestPlan()}
      */
     public void clearTestPlan() {
@@ -208,7 +208,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
 
     /**
      * Clear the test plan, and use specified node for test plan and default node for workbench
-     *
+     * <p/>
      * N.B. Should only be called by {@link GuiPackage#clearTestPlan(TestElement)}
      *
      * @param testPlan the node to use as the testplan top node
@@ -218,13 +218,13 @@ public class JMeterTreeModel extends DefaultTreeModel {
         // Remove the workbench and testplan nodes
         int children = getChildCount(getRoot());
         while (children > 0) {
-            JMeterTreeNode child = (JMeterTreeNode)getChild(getRoot(), 0);
+            JMeterTreeNode child = (JMeterTreeNode) getChild(getRoot(), 0);
             super.removeNodeFromParent(child);
             children = getChildCount(getRoot());
         }
         resumeUndoHistoryRecording();
         // Init the tree
-        initTree(testPlan,new WorkBenchGui().createTestElement()); // Assumes this is only called from GUI mode
+        initTree(testPlan, new WorkBenchGui().createTestElement()); // Assumes this is only called from GUI mode
     }
 
     /**
@@ -242,15 +242,16 @@ public class JMeterTreeModel extends DefaultTreeModel {
         // Let others know that the tree content has changed.
         // This should not be necessary, but without it, nodes are not shown when the user
         // uses the Close menu item
-        nodeStructureChanged((JMeterTreeNode)getRoot());
+        nodeStructureChanged((JMeterTreeNode) getRoot());
         resumeUndoHistoryRecording();
         undoHistory.clear();
-        saveUndoPoint(new TreePath(((JMeterTreeNode)getRoot()).getPath()), "Initial Tree");
+        saveUndoPoint("Initial Tree");
     }
 
     /**
      * Navigate up and down in history
-     * @param offset 
+     *
+     * @param offset int
      * @return TreePath
      */
     public TreePath goInHistory(int offset) {
@@ -259,11 +260,16 @@ public class JMeterTreeModel extends DefaultTreeModel {
 
     /**
      * Save in undo history
-     * @param path TreePath
-     * @param comment
+     *
+     * @param path    TreePath
+     * @param comment String
      */
     public void saveUndoPoint(TreePath path, String comment) {
         undoHistory.add(this, path, comment);
+    }
+
+    public void saveUndoPoint(String comment) {
+        saveUndoPoint(new TreePath(((JMeterTreeNode) getRoot()).getPath()), comment);
     }
 
     /**
@@ -286,18 +292,19 @@ public class JMeterTreeModel extends DefaultTreeModel {
     public boolean canUndo() {
         return undoHistory.canUndo();
     }
-    
+
     /**
-     * 
+     *
      */
     public void pauseUndoHistoryRecording() {
         undoHistory.pauseRecording();
     }
-    
+
     /**
-     * 
+     *
      */
     public void resumeUndoHistoryRecording() {
         undoHistory.resumeRecording();
     }
+
 }

@@ -108,7 +108,7 @@ public final class GuiPackage implements LocaleChangeListener {
 
     /** The main JMeter frame. */
     private MainFrame mainFrame;
-    
+
     /** The main JMeter toolbar. */
     private JToolBar toolbar;
 
@@ -125,7 +125,7 @@ public final class GuiPackage implements LocaleChangeListener {
      */
     private LoggerPanel loggerPanel;
 
-    
+
     /**
      * Private constructor to permit instantiation only from within this class.
      * Use {@link #getInstance()} to retrieve a singleton instance.
@@ -427,8 +427,8 @@ public final class GuiPackage implements LocaleChangeListener {
             log.error("Problem retrieving gui", e);
         }
     }
-    
-    
+
+
     /**
      * Compute checksum of TestElement to detect changes
      *  the method calculates properties checksum to detect testelement
@@ -499,11 +499,14 @@ public final class GuiPackage implements LocaleChangeListener {
      */
     public HashTree addSubTree(HashTree subTree) throws IllegalUserActionException {
         treeModel.pauseUndoHistoryRecording();
+        HashTree hashTree=null;
         try {
-            return treeModel.addSubTree(subTree, treeListener.getCurrentNode());
+            hashTree= treeModel.addSubTree(subTree, treeListener.getCurrentNode());
         } finally {
             treeModel.resumeUndoHistoryRecording();
         }
+        treeModel.saveUndoPoint("Loaded tree");
+        return hashTree;
     }
 
     /**
@@ -566,7 +569,7 @@ public final class GuiPackage implements LocaleChangeListener {
     public JMeterTreeListener getTreeListener() {
         return treeListener;
     }
-    
+
     /**
      * Set the main JMeter toolbar.
      *
@@ -585,7 +588,7 @@ public final class GuiPackage implements LocaleChangeListener {
     public JToolBar getMainToolbar() {
         return toolbar;
     }
-    
+
     /**
      * Set the menu item toolbar.
      *
@@ -719,6 +722,7 @@ public final class GuiPackage implements LocaleChangeListener {
     public void clearTestPlan(TestElement element) {
         getTreeModel().clearTestPlan(element);
         removeNode(element);
+        treeModel.clearUndo();
     }
 
     public static void showErrorMessage(final String message, final String title){
@@ -759,7 +763,7 @@ public final class GuiPackage implements LocaleChangeListener {
             }
         }
     }
-    
+
     /**
      * Register process to stop on reload
      * @param stoppable
@@ -769,7 +773,7 @@ public final class GuiPackage implements LocaleChangeListener {
     }
 
     /**
-     * 
+     *
      * @return List<IStoppable> Copy of IStoppable
      */
     public List<Stoppable> getStoppables() {
@@ -785,7 +789,7 @@ public final class GuiPackage implements LocaleChangeListener {
     public void setMenuItemLoggerPanel(JCheckBoxMenuItem menuItemLoggerPanel) {
         this.menuItemLoggerPanel = menuItemLoggerPanel;
     }
-    
+
     /**
      * Get the menu item LoggerPanel.
      *
