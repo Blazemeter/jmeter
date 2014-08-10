@@ -416,9 +416,8 @@ public final class GuiPackage implements LocaleChangeListener {
                 comp.modifyTestElement(el);
                 int after=getTestElementCheckSum(el);
                 if (before!=after) {
-                    treeModel.saveUndoPoint(new TreePath(currentNode.getPath()), "Properties Changed");
+                    currentNode.nameChanged(); // Bug 50221 - ensure label is updated
                 }
-                currentNode.nameChanged(); // Bug 50221 - ensure label is updated
             }
             // The current node is now updated
             currentNodeUpdated = true;

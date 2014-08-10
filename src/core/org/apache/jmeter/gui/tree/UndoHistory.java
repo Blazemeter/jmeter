@@ -18,7 +18,6 @@
 
 package org.apache.jmeter.gui.tree;
 
-import java.awt.event.ActionEvent;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +28,6 @@ import javax.swing.tree.TreePath;
 
 import org.apache.jmeter.engine.TreeCloner;
 import org.apache.jmeter.gui.GuiPackage;
-import org.apache.jmeter.gui.action.Load;
 import org.apache.jmeter.gui.action.UndoCommand;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.logging.LoggingManager;
@@ -79,9 +77,9 @@ public class UndoHistory implements TreeModelListener, Serializable {
         private final String comment;
 
         /**
-         * @param copy
-         * @param apath
-         * @param acomment
+         * @param copy     HashTree
+         * @param apath    TreePath
+         * @param acomment String
          */
         public HistoryItem(HashTree copy, TreePath apath, String acomment) {
             tree = copy;
@@ -145,24 +143,26 @@ public class UndoHistory implements TreeModelListener, Serializable {
      * this method relies on the rule that the record in history made AFTER
      * change has been made to test plan
      *
-     * @param treeModel
-     * @param path
-     * @param comment
+     * @param treeModel JMeterTreeModel
+     * @param path      TreePath
+     * @param comment   String
      */
-    void add(JMeterTreeModel treeModel, TreePath path, String comment) {
+    public void add(JMeterTreeModel treeModel, TreePath path, String comment) {
         // don't add element if we are in the middle of undo/redo or a big loading
         if (noop()) {
             log.debug("Not adding history because of noop", new Throwable());
             return;
         }
-        JMeterTreeNode root = (JMeterTreeNode) ((JMeterTreeNode) treeModel.getRoot());
+        JMeterTreeNode root = (JMeterTreeNode) treeModel.getRoot();
         if (root.getChildCount() < 1) {
             log.debug("Not adding history because of no children", new Throwable());
             return;
         }
 
+        String name = ((JMeterTreeNode) path.getLastPathComponent()).getName();
+
         if (log.isDebugEnabled()) {
-            log.debug("Adding history element: " + comment, new Throwable());
+            log.debug("Adding history element " + name + ": " + comment, new Throwable());
         }
 
         working = true;
@@ -211,7 +211,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
             try {
                 final GuiPackage guiInstance = GuiPackage.getInstance();
                 guiInstance.clearTestPlan();
-                HashTree newTree = guiInstance.addSubTree(newModel);
+                guiInstance.addSubTree(newModel);
             } catch (Exception ex) {
                 log.error("Failed to load from history", ex);
             }
@@ -238,7 +238,10 @@ public class UndoHistory implements TreeModelListener, Serializable {
     }
 
     public void treeNodesChanged(TreeModelEvent tme) {
-        log.debug("Nodes changed");
+        String name = ((JMeterTreeNode) tme.getTreePath().getLastPathComponent()).getName();
+        log.debug("Nodes changed " + name);
+        final JMeterTreeModel sender = (JMeterTreeModel) tme.getSource();
+        add(sender, getTreePathToRecord(tme), "Node changed " + name);
     }
 
     /**
@@ -246,7 +249,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
      */
     // FIXME: is there better way to record test plan load events? currently it records each node added separately
     public void treeNodesInserted(TreeModelEvent tme) {
-        String name = tme.toString();
+        String name = ((JMeterTreeNode) tme.getTreePath().getLastPathComponent()).getName();
         log.debug("Nodes inserted " + name);
         final JMeterTreeModel sender = (JMeterTreeModel) tme.getSource();
         add(sender, getTreePathToRecord(tme), "Add " + name);
@@ -256,7 +259,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
      *
      */
     public void treeNodesRemoved(TreeModelEvent tme) {
-        String name = tme.toString();
+        String name = ((JMeterTreeNode) tme.getTreePath().getLastPathComponent()).getName();
         log.debug("Nodes removed: " + name);
         add((JMeterTreeModel) tme.getSource(), getTreePathToRecord(tme), "Remove " + name);
     }
