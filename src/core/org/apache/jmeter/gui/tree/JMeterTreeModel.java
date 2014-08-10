@@ -130,7 +130,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
             guicomp.configure(component);
             guicomp.modifyTestElement(component);
             guiPackage.getCurrentGui(); // put the gui object back
-            // to the way it was.
+                                        // to the way it was.
         }
         JMeterTreeNode newNode = new JMeterTreeNode(component, this);
 
@@ -198,7 +198,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
 
     /**
      * Clear the test plan, and use default node for test plan and workbench.
-     * <p/>
+     *
      * N.B. Should only be called by {@link GuiPackage#clearTestPlan()}
      */
     public void clearTestPlan() {
@@ -208,7 +208,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
 
     /**
      * Clear the test plan, and use specified node for test plan and default node for workbench
-     * <p/>
+     *
      * N.B. Should only be called by {@link GuiPackage#clearTestPlan(TestElement)}
      *
      * @param testPlan the node to use as the testplan top node
