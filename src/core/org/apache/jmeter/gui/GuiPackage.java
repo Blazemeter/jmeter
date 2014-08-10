@@ -33,6 +33,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
+import javax.swing.tree.TreePath;
 
 import org.apache.jmeter.engine.util.ValueReplacer;
 import org.apache.jmeter.exceptions.IllegalUserActionException;
@@ -44,6 +45,9 @@ import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testbeans.gui.TestBeanGUI;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestPlan;
+import org.apache.jmeter.testelement.property.JMeterProperty;
+import org.apache.jmeter.testelement.property.PropertyIterator;
+import org.apache.jmeter.testelement.property.TestElementProperty;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jmeter.util.LocaleChangeEvent;
 import org.apache.jmeter.util.LocaleChangeListener;
@@ -408,7 +412,12 @@ public final class GuiPackage implements LocaleChangeListener {
                 log.debug("Updating current node " + currentNode.getName());
                 JMeterGUIComponent comp = getGui(currentNode.getTestElement());
                 TestElement el = currentNode.getTestElement();
+                int before=getTestElementCheckSum(el);
                 comp.modifyTestElement(el);
+                int after=getTestElementCheckSum(el);
+                if (before!=after) {
+                    treeModel.saveUndoPoint(new TreePath(currentNode.getPath()), "Properties Changed");
+                }
                 currentNode.nameChanged(); // Bug 50221 - ensure label is updated
             }
             // The current node is now updated
@@ -417,6 +426,31 @@ public final class GuiPackage implements LocaleChangeListener {
         } catch (Exception e) {
             log.error("Problem retrieving gui", e);
         }
+    }
+    
+    
+    /**
+     * Compute checksum of TestElement to detect changes
+     *  the method calculates properties checksum to detect testelement
+     *  modifications
+     * TODO would be better to override hashCode for TestElement, but I decided to touch it
+     * @param el {@link TestElement}
+     * @return int checksum
+     */
+    private int getTestElementCheckSum(TestElement el) {
+        int ret = el.getClass().hashCode();
+        PropertyIterator it = el.propertyIterator();
+        while (it.hasNext()) {
+            JMeterProperty obj = it.next();
+            if (obj instanceof TestElementProperty) {
+                ret ^= getTestElementCheckSum(((TestElementProperty) obj)
+                        .getElement());
+            } else {
+                ret ^= obj.getName().hashCode();
+                ret ^= obj.getStringValue().hashCode();
+            }
+        }
+        return ret;
     }
 
     public JMeterTreeNode getCurrentNode() {
@@ -464,7 +498,12 @@ public final class GuiPackage implements LocaleChangeListener {
      *             if a subtree cannot be added to the currently selected node
      */
     public HashTree addSubTree(HashTree subTree) throws IllegalUserActionException {
-        return treeModel.addSubTree(subTree, treeListener.getCurrentNode());
+        treeModel.pauseUndoHistoryRecording();
+        try {
+            return treeModel.addSubTree(subTree, treeListener.getCurrentNode());
+        } finally {
+            treeModel.resumeUndoHistoryRecording();
+        }
     }
 
     /**

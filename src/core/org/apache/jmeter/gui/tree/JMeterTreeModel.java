@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
 
 import org.apache.jmeter.config.gui.AbstractConfigGui;
 import org.apache.jmeter.control.gui.TestPlanGui;
@@ -40,10 +41,12 @@ import org.apache.jorphan.collections.ListedHashTree;
 public class JMeterTreeModel extends DefaultTreeModel {
 
     private static final long serialVersionUID = 240L;
+    private UndoHistory undoHistory = new UndoHistory();
 
     public JMeterTreeModel(TestElement tp, TestElement wb) {
         super(new JMeterTreeNode(wb, null));
-        initTree(tp,wb);
+        addTreeModelListener(undoHistory);
+        initTree(tp, wb);
     }
 
     public JMeterTreeModel() {
@@ -211,6 +214,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
      * @param testPlan the node to use as the testplan top node
      */
     public void clearTestPlan(TestElement testPlan) {
+        pauseUndoHistoryRecording();
         // Remove the workbench and testplan nodes
         int children = getChildCount(getRoot());
         while (children > 0) {
@@ -218,6 +222,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
             super.removeNodeFromParent(child);
             children = getChildCount(getRoot());
         }
+        resumeUndoHistoryRecording();
         // Init the tree
         initTree(testPlan,new WorkBenchGui().createTestElement()); // Assumes this is only called from GUI mode
     }
@@ -229,6 +234,7 @@ public class JMeterTreeModel extends DefaultTreeModel {
      * @param wb the element to use as workbench
      */
     private void initTree(TestElement tp, TestElement wb) {
+        pauseUndoHistoryRecording();
         // Insert the test plan node
         insertNodeInto(new JMeterTreeNode(tp, this), (JMeterTreeNode) getRoot(), 0);
         // Insert the workbench node
@@ -237,5 +243,61 @@ public class JMeterTreeModel extends DefaultTreeModel {
         // This should not be necessary, but without it, nodes are not shown when the user
         // uses the Close menu item
         nodeStructureChanged((JMeterTreeNode)getRoot());
+        resumeUndoHistoryRecording();
+        undoHistory.clear();
+        saveUndoPoint(new TreePath(((JMeterTreeNode)getRoot()).getPath()), "Initial Tree");
+    }
+
+    /**
+     * Navigate up and down in history
+     * @param offset 
+     * @return TreePath
+     */
+    public TreePath goInHistory(int offset) {
+        return undoHistory.getRelativeState(offset, this);
+    }
+
+    /**
+     * Save in undo history
+     * @param path TreePath
+     * @param comment
+     */
+    public void saveUndoPoint(TreePath path, String comment) {
+        undoHistory.add(this, path, comment);
+    }
+
+    /**
+     * Clear undo history
+     */
+    public void clearUndo() {
+        undoHistory.clear();
+    }
+
+    /**
+     * @return true if history contains redo item
+     */
+    public boolean canRedo() {
+        return undoHistory.canRedo();
+    }
+
+    /**
+     * @return true if history contains undo item
+     */
+    public boolean canUndo() {
+        return undoHistory.canUndo();
+    }
+    
+    /**
+     * 
+     */
+    public void pauseUndoHistoryRecording() {
+        undoHistory.pauseRecording();
+    }
+    
+    /**
+     * 
+     */
+    public void resumeUndoHistoryRecording() {
+        undoHistory.resumeRecording();
     }
 }
