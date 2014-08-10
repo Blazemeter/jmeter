@@ -260,13 +260,13 @@ public final class MenuFactory {
 
         JMenuItem undo = makeMenuItemRes("undo", ActionNames.UNDO); //$NON-NLS-1$
         //undo.setAccelerator(KeyStrokes.UNDO);
-        undo.setEnabled(GuiPackage.getInstance().getTreeModel().canUndo());
+        undo.setEnabled(GuiPackage.getInstance().canUndo());
         menu.add(undo);
 
         JMenuItem redo = makeMenuItemRes("redo", ActionNames.REDO); //$NON-NLS-1$
         //redo.setAccelerator(KeyStrokes.REDO);
         // TODO: we could even show some hints on action being undone here if this will be required (by passing those hints into history  records)
-        redo.setEnabled(GuiPackage.getInstance().getTreeModel().canRedo());
+        redo.setEnabled(GuiPackage.getInstance().canRedo());
         menu.add(redo);
         // TODO: find a way to enable/disable toolbar items depending on action states
     }

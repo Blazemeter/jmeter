@@ -22,13 +22,14 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.*;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
-import javax.swing.tree.TreePath;
 
 import org.apache.jmeter.engine.TreeCloner;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.gui.action.UndoCommand;
+import org.apache.jmeter.testelement.TestElement;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -66,50 +67,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
     private static final int INITIAL_POS = -1;
     private static final Logger log = LoggingManager.getLoggerForClass();
 
-    /**
-     * History item
-     */
-    private static class HistoryItem implements Serializable {
-
-        private final HashTree tree;
-        private final TreePath path;
-        // maybe the comment should be removed since it is not used yet
-        private final String comment;
-
-        /**
-         * @param copy     HashTree
-         * @param apath    TreePath
-         * @param acomment String
-         */
-        public HistoryItem(HashTree copy, TreePath apath, String acomment) {
-            tree = copy;
-            path = apath;
-            comment = acomment;
-        }
-
-        /**
-         * @return {@link HashTree}
-         */
-        public HashTree getKey() {
-            return tree;
-        }
-
-        /**
-         * @return {@link TreePath}
-         */
-        public TreePath getValue() {
-            return path;
-        }
-
-        /**
-         * @return String comment
-         */
-        public String getComment() {
-            return comment;
-        }
-    }
-
-    private List<HistoryItem> history = new LimitedArrayList<HistoryItem>(25); // TODO Make this configurable or too many properties ?
+    private List<UndoHistoryItem> history = new LimitedArrayList<UndoHistoryItem>(25); // TODO Make this configurable or too many properties ?
     private int position = INITIAL_POS;
     /**
      * flag to prevent recursive actions
@@ -144,13 +102,12 @@ public class UndoHistory implements TreeModelListener, Serializable {
      * change has been made to test plan
      *
      * @param treeModel JMeterTreeModel
-     * @param path      TreePath
      * @param comment   String
      */
-    public void add(JMeterTreeModel treeModel, TreePath path, String comment) {
+    public void add(JMeterTreeModel treeModel, String comment) {
         // don't add element if we are in the middle of undo/redo or a big loading
         if (noop()) {
-            log.debug("Not adding history because of noop", new Throwable());
+            log.debug("Not adding history because of noop");
             return;
         }
         JMeterTreeNode root = (JMeterTreeNode) treeModel.getRoot();
@@ -159,7 +116,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
             return;
         }
 
-        String name = ((JMeterTreeNode) path.getLastPathComponent()).getName();
+        String name = ((JMeterTreeNode) treeModel.getRoot()).getName();
 
         if (log.isDebugEnabled()) {
             log.debug("Adding history element " + name + ": " + comment, new Throwable());
@@ -184,33 +141,34 @@ public class UndoHistory implements TreeModelListener, Serializable {
         tree.traverse(cloner);
         HashTree copy = cloner.getClonedTree();
 
-        history.add(new HistoryItem(copy, path, comment));
+        history.add(getItem(copy, comment));
 
         log.debug("Added history element, position: " + position + ", size: " + history.size());
         working = false;
     }
 
-    public TreePath getRelativeState(int offset, JMeterTreeModel acceptorModel) {
+    public void getRelativeState(int offset, JMeterTreeModel acceptorModel) {
         log.debug("Moving history from position " + position + " with step " + offset + ", size is " + history.size());
         if (offset < 0 && !canUndo()) {
             log.warn("Can't undo, we're already on the last record");
-            return null;
+            return;
         }
 
         if (offset > 0 && !canRedo()) {
             log.warn("Can't redo, we're already on the first record");
-            return null;
+            return;
         }
 
         position += offset;
 
+        final GuiPackage guiInstance = GuiPackage.getInstance();
+
         if (!history.isEmpty()) {
-            HashTree newModel = history.get(position).getKey();
+            HashTree newModel = history.get(position).getTree();
             acceptorModel.removeTreeModelListener(this);
             working = true;
             try {
-                final GuiPackage guiInstance = GuiPackage.getInstance();
-                guiInstance.clearTestPlan();
+                guiInstance.getTreeModel().clearTestPlan();
                 guiInstance.addSubTree(newModel);
             } catch (Exception ex) {
                 log.error("Failed to load from history", ex);
@@ -219,8 +177,24 @@ public class UndoHistory implements TreeModelListener, Serializable {
             working = false;
         }
         log.debug("Current position " + position + ", size is " + history.size());
-        // select historical path
-        return history.get(position).getValue();
+        // select historical expandedRows
+        UndoHistoryItem path = history.get(position);
+
+        guiInstance.updateCurrentGui();
+
+        final JTree tree = GuiPackage.getInstance().getMainFrame().getTree();
+
+        if (path.getExpandedRows().length > 0) {
+            for (int rowN : path.getExpandedRows()) {
+                tree.expandRow(rowN);
+            }
+        } else {
+            tree.expandRow(0);
+        }
+        tree.setSelectionRow(path.getSelectionRow());
+
+        guiInstance.updateCurrentGui();
+        guiInstance.getMainFrame().repaint();
     }
 
     /**
@@ -241,7 +215,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
         String name = ((JMeterTreeNode) tme.getTreePath().getLastPathComponent()).getName();
         log.debug("Nodes changed " + name);
         final JMeterTreeModel sender = (JMeterTreeModel) tme.getSource();
-        add(sender, getTreePathToRecord(tme), "Node changed " + name);
+        add(sender, "Node changed " + name);
     }
 
     /**
@@ -252,7 +226,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
         String name = ((JMeterTreeNode) tme.getTreePath().getLastPathComponent()).getName();
         log.debug("Nodes inserted " + name);
         final JMeterTreeModel sender = (JMeterTreeModel) tme.getSource();
-        add(sender, getTreePathToRecord(tme), "Add " + name);
+        add(sender, "Add " + name);
     }
 
     /**
@@ -261,7 +235,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
     public void treeNodesRemoved(TreeModelEvent tme) {
         String name = ((JMeterTreeNode) tme.getTreePath().getLastPathComponent()).getName();
         log.debug("Nodes removed: " + name);
-        add((JMeterTreeModel) tme.getSource(), getTreePathToRecord(tme), "Remove " + name);
+        add((JMeterTreeModel) tme.getSource(), "Remove " + name);
     }
 
     /**
@@ -269,21 +243,26 @@ public class UndoHistory implements TreeModelListener, Serializable {
      */
     public void treeStructureChanged(TreeModelEvent tme) {
         log.debug("Nodes struct changed");
-        add((JMeterTreeModel) tme.getSource(), getTreePathToRecord(tme), "Complex Change");
+        add((JMeterTreeModel) tme.getSource(), "Complex Change");
     }
 
     /**
-     * @param tme TreeModelEvent
-     * @return TreePath
+     * @return int[]
      */
-    private TreePath getTreePathToRecord(TreeModelEvent tme) {
-        TreePath path;
-        if (GuiPackage.getInstance() != null) {
-            path = GuiPackage.getInstance().getMainFrame().getTree().getSelectionPath();
-        } else {
-            path = tme.getTreePath();
+    private UndoHistoryItem getItem(HashTree copy, String comment) {
+        final JTree tree = GuiPackage.getInstance().getMainFrame().getTree();
+        ArrayList<Integer> path = new ArrayList<Integer>();
+        for (int rowN = 0; rowN < tree.getRowCount(); rowN++) {
+            if (tree.isExpanded(rowN)) {
+                path.add(rowN);
+            }
         }
-        return path;
+
+        int[] ret = new int[path.size()];
+        for (int i = 0; i < path.size(); i++) {
+            ret[i] = path.get(i);
+        }
+        return new UndoHistoryItem(copy, ret, tree.getMinSelectionRow(), comment);
     }
 
     /**
