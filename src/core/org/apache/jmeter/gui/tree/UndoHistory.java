@@ -28,8 +28,8 @@ import javax.swing.event.TreeModelListener;
 
 import org.apache.jmeter.engine.TreeCloner;
 import org.apache.jmeter.gui.GuiPackage;
+import org.apache.jmeter.gui.MainFrame;
 import org.apache.jmeter.gui.action.UndoCommand;
-import org.apache.jmeter.testelement.TestElement;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -69,11 +69,11 @@ public class UndoHistory implements TreeModelListener, Serializable {
 
     private List<UndoHistoryItem> history = new LimitedArrayList<UndoHistoryItem>(25); // TODO Make this configurable or too many properties ?
     private int position = INITIAL_POS;
+
     /**
      * flag to prevent recursive actions
      */
     private boolean working = false;
-    private boolean recording = true;
 
     public UndoHistory() {
     }
@@ -82,7 +82,7 @@ public class UndoHistory implements TreeModelListener, Serializable {
      * @return true if must not put in history
      */
     private boolean noop() {
-        return !recording || working;
+        return working;
     }
 
     /**
@@ -250,32 +250,24 @@ public class UndoHistory implements TreeModelListener, Serializable {
      * @return int[]
      */
     private UndoHistoryItem getItem(HashTree copy, String comment) {
-        final JTree tree = GuiPackage.getInstance().getMainFrame().getTree();
         ArrayList<Integer> path = new ArrayList<Integer>();
-        for (int rowN = 0; rowN < tree.getRowCount(); rowN++) {
-            if (tree.isExpanded(rowN)) {
-                path.add(rowN);
+        int selected = 0;
+        MainFrame mainframe = GuiPackage.getInstance().getMainFrame();
+        if (mainframe != null) {
+            final JTree tree = mainframe.getTree();
+            selected = tree.getMinSelectionRow();
+
+            for (int rowN = 0; rowN < tree.getRowCount(); rowN++) {
+                if (tree.isExpanded(rowN)) {
+                    path.add(rowN);
+                }
             }
         }
-
         int[] ret = new int[path.size()];
         for (int i = 0; i < path.size(); i++) {
             ret[i] = path.get(i);
         }
-        return new UndoHistoryItem(copy, ret, tree.getMinSelectionRow(), comment);
+        return new UndoHistoryItem(copy, ret, selected, comment);
     }
 
-    /**
-     * Resume inserting in UndoHistory
-     */
-    public void resumeRecording() {
-        this.recording = true;
-    }
-
-    /**
-     * Stop inserting in UndoHistory
-     */
-    public void pauseRecording() {
-        this.recording = false;
-    }
 }

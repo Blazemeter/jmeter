@@ -33,7 +33,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
-import javax.swing.tree.TreePath;
 
 import org.apache.jmeter.engine.util.ValueReplacer;
 import org.apache.jmeter.exceptions.IllegalUserActionException;
@@ -174,6 +173,7 @@ public final class GuiPackage implements LocaleChangeListener {
     public static GuiPackage getInstance(JMeterTreeListener listener, JMeterTreeModel treeModel) {
         if (guiPack == null) {
             guiPack = new GuiPackage(treeModel, listener);
+            guiPack.undoHistory.add(treeModel, "Created");
         }
         return guiPack;
     }
@@ -490,8 +490,7 @@ public final class GuiPackage implements LocaleChangeListener {
      * @throws IllegalUserActionException if a subtree cannot be added to the currently selected node
      */
     public HashTree addSubTree(HashTree subTree) throws IllegalUserActionException {
-        HashTree hashTree = null;
-        hashTree = treeModel.addSubTree(subTree, treeListener.getCurrentNode());
+        HashTree hashTree = treeModel.addSubTree(subTree, treeListener.getCurrentNode());
         undoHistory.clear();
         undoHistory.add(this.treeModel, "Loaded tree");
         return hashTree;
@@ -801,7 +800,6 @@ public final class GuiPackage implements LocaleChangeListener {
      * Navigate up and down in history
      *
      * @param offset int
-     * @return UndoHistoryItem
      */
     public void goInHistory(int offset) {
         undoHistory.getRelativeState(offset, this.treeModel);
