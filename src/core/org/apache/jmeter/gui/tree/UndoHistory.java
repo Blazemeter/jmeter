@@ -26,7 +26,6 @@ import javax.swing.*;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 
-import org.apache.jmeter.engine.TreeCloner;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.gui.MainFrame;
 import org.apache.jmeter.gui.action.UndoCommand;
@@ -39,6 +38,9 @@ import org.apache.log.Logger;
  * before node insertion; after each walk off edited node (modifyTestElement)
  */
 public class UndoHistory implements TreeModelListener, Serializable {
+    private ArrayList<Integer> savedExpanded = new ArrayList<Integer>();
+    private int savedSelected = 0;
+
     /**
      * Avoid storing too many elements
      *
@@ -134,14 +136,10 @@ public class UndoHistory implements TreeModelListener, Serializable {
             history.remove(history.size() - 1);
         }
 
-        // convert before clone
-        UndoCommand.convertSubTree(tree);
         // cloning is required because we need to immute stored data
-        TreeCloner cloner = new TreeCloner(false);
-        tree.traverse(cloner);
-        HashTree copy = cloner.getClonedTree();
+        HashTree copy = UndoCommand.convertSubTree(tree);
 
-        history.add(getItem(copy, comment));
+        history.add(new UndoHistoryItem(copy, comment));
 
         log.debug("Added history element, position: " + position + ", size: " + history.size());
         working = false;
@@ -159,42 +157,39 @@ public class UndoHistory implements TreeModelListener, Serializable {
             return;
         }
 
+        if (history.isEmpty()) {
+            log.warn("Can't proceed, the history is empty");
+            return;
+        }
+
         position += offset;
 
         final GuiPackage guiInstance = GuiPackage.getInstance();
 
-        if (!history.isEmpty()) {
-            HashTree newModel = history.get(position).getTree();
-            acceptorModel.removeTreeModelListener(this);
-            working = true;
-            try {
-                guiInstance.getTreeModel().clearTestPlan();
-                guiInstance.addSubTree(newModel);
-            } catch (Exception ex) {
-                log.error("Failed to load from history", ex);
-            }
-            acceptorModel.addTreeModelListener(this);
-            working = false;
-        }
+        saveTreeState(guiInstance);
+
+        loadHistoricalTree(acceptorModel, guiInstance);
+
         log.debug("Current position " + position + ", size is " + history.size());
-        // select historical expandedRows
-        UndoHistoryItem path = history.get(position);
 
-        guiInstance.updateCurrentGui();
-
-        final JTree tree = GuiPackage.getInstance().getMainFrame().getTree();
-
-        if (path.getExpandedRows().length > 0) {
-            for (int rowN : path.getExpandedRows()) {
-                tree.expandRow(rowN);
-            }
-        } else {
-            tree.expandRow(0);
-        }
-        tree.setSelectionRow(path.getSelectionRow());
+        restoreTreeState(guiInstance);
 
         guiInstance.updateCurrentGui();
         guiInstance.getMainFrame().repaint();
+    }
+
+    private void loadHistoricalTree(JMeterTreeModel acceptorModel, GuiPackage guiInstance) {
+        HashTree newModel = history.get(position).getTree();
+        acceptorModel.removeTreeModelListener(this);
+        working = true;
+        try {
+            guiInstance.getTreeModel().clearTestPlan();
+            guiInstance.addSubTree(newModel);
+        } catch (Exception ex) {
+            log.error("Failed to load from history", ex);
+        }
+        acceptorModel.addTreeModelListener(this);
+        working = false;
     }
 
     /**
@@ -247,27 +242,36 @@ public class UndoHistory implements TreeModelListener, Serializable {
     }
 
     /**
+     * @param guiPackage
      * @return int[]
      */
-    private UndoHistoryItem getItem(HashTree copy, String comment) {
-        ArrayList<Integer> path = new ArrayList<Integer>();
-        int selected = 0;
-        MainFrame mainframe = GuiPackage.getInstance().getMainFrame();
+    private void saveTreeState(GuiPackage guiPackage) {
+        savedExpanded.clear();
+
+        MainFrame mainframe = guiPackage.getMainFrame();
         if (mainframe != null) {
             final JTree tree = mainframe.getTree();
-            selected = tree.getMinSelectionRow();
+            savedSelected = tree.getMinSelectionRow();
 
             for (int rowN = 0; rowN < tree.getRowCount(); rowN++) {
                 if (tree.isExpanded(rowN)) {
-                    path.add(rowN);
+                    savedExpanded.add(rowN);
                 }
             }
         }
-        int[] ret = new int[path.size()];
-        for (int i = 0; i < path.size(); i++) {
-            ret[i] = path.get(i);
+    }
+
+    private void restoreTreeState(GuiPackage guiInstance) {
+        final JTree tree = guiInstance.getMainFrame().getTree();
+
+        if (savedExpanded.size() > 0) {
+            for (int rowN : savedExpanded) {
+                tree.expandRow(rowN);
+            }
+        } else {
+            tree.expandRow(0);
         }
-        return new UndoHistoryItem(copy, ret, selected, comment);
+        tree.setSelectionRow(savedSelected);
     }
 
 }

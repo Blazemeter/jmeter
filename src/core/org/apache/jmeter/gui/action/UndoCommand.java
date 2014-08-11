@@ -22,6 +22,7 @@ import java.awt.event.ActionEvent;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.jmeter.engine.TreeCloner;
 import org.apache.jmeter.exceptions.IllegalUserActionException;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jorphan.collections.HashTree;
@@ -58,9 +59,19 @@ public class UndoCommand implements Command {
         return commands;
     }
 
-    // wrapper to use package-visible method
-    public static void convertSubTree(HashTree tree) {
+    /**
+     * wrapper to use package-visible method
+     * and clone tree for saving
+     *
+     * @param tree to be converted and cloned
+     */
+    public static HashTree convertSubTree(HashTree tree) {
         Save executor = new Save();
         executor.convertSubTree(tree);
+
+        // convert before clone
+        TreeCloner cloner = new TreeCloner(false);
+        tree.traverse(cloner);
+        return cloner.getClonedTree();
     }
 }
