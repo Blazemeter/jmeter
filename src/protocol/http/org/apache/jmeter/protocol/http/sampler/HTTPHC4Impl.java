@@ -73,6 +73,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.client.params.CookiePolicy;
 import org.apache.http.client.protocol.ResponseContentEncoding;
+import org.apache.http.conn.ConnectionKeepAliveStrategy;
+import org.apache.http.conn.DnsResolver;
 import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
@@ -87,6 +89,9 @@ import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.AbstractHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.http.impl.conn.SchemeRegistryFactory;
+import org.apache.http.impl.conn.SystemDefaultDnsResolver;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.CoreConnectionPNames;
@@ -599,7 +604,14 @@ public class HTTPHC4Impl extends HTTPHCAbstractImpl {
 
             HttpParams clientParams = new DefaultedHttpParams(new BasicHttpParams(), DEFAULT_HTTP_PARAMS);
             
-            httpClient = new DefaultHttpClient(clientParams){
+            DnsResolver resolver = this.testElement.getDNSResolver();
+            if (resolver == null) {
+                resolver = new SystemDefaultDnsResolver();
+            }
+            PoolingClientConnectionManager poolingClientConnectionManager = new PoolingClientConnectionManager(
+                    SchemeRegistryFactory.createDefault(), resolver);
+
+            httpClient = new DefaultHttpClient(poolingClientConnectionManager, clientParams) {
                 @Override
                 protected HttpRequestRetryHandler createHttpRequestRetryHandler() {
                     return new DefaultHttpRequestRetryHandler(RETRY_COUNT, false); // set retry count

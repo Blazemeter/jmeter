@@ -54,6 +54,7 @@ import org.apache.jmeter.protocol.http.control.CacheManager;
 import org.apache.jmeter.protocol.http.control.Cookie;
 import org.apache.jmeter.protocol.http.control.CookieManager;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
+import org.apache.jmeter.protocol.http.control.DNSCacheManager;
 import org.apache.jmeter.protocol.http.parser.HTMLParseException;
 import org.apache.jmeter.protocol.http.parser.HTMLParser;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
@@ -104,6 +105,8 @@ public abstract class HTTPSamplerBase extends AbstractSampler
                     "org.apache.jmeter.protocol.http.config.gui.HttpDefaultsGui",
                     "org.apache.jmeter.config.gui.SimpleConfigGui",
                     "org.apache.jmeter.protocol.http.gui.HeaderPanel",
+                    "org.apache.jmeter.protocol.http.control.DNSCacheManager",
+                    "org.apache.jmeter.protocol.http.gui.DNSCachePanel",
                     "org.apache.jmeter.protocol.http.gui.AuthPanel",
                     "org.apache.jmeter.protocol.http.gui.CacheManagerGui",
                     "org.apache.jmeter.protocol.http.gui.CookiePanel"}));
@@ -118,6 +121,8 @@ public abstract class HTTPSamplerBase extends AbstractSampler
     public static final String CACHE_MANAGER = "HTTPSampler.cache_manager"; // $NON-NLS-1$
 
     public static final String HEADER_MANAGER = "HTTPSampler.header_manager"; // $NON-NLS-1$
+
+    public static final String DNS_CACHE_MANAGER = "HTTPSampler.dns_cache_manager"; // $NON-NLS-1$
 
     public static final String DOMAIN = "HTTPSampler.domain"; // $NON-NLS-1$
 
@@ -621,6 +626,8 @@ public abstract class HTTPSamplerBase extends AbstractSampler
             setHeaderManager((HeaderManager) el);
         } else if (el instanceof AuthManager) {
             setAuthManager((AuthManager) el);
+        } else if (el instanceof DNSCacheManager) {
+            setDNSResolver((DNSCacheManager) el);
         } else {
             super.addTestElement(el);
         }
@@ -832,6 +839,18 @@ public abstract class HTTPSamplerBase extends AbstractSampler
 
     public CacheManager getCacheManager() {
         return (CacheManager) getProperty(CACHE_MANAGER).getObjectValue();
+    }
+
+    public DNSCacheManager getDNSResolver() {
+        return (DNSCacheManager) getProperty(DNS_CACHE_MANAGER).getObjectValue();
+    }
+
+    public void setDNSResolver(DNSCacheManager cacheManager) {
+        DNSCacheManager mgr = getDNSResolver();
+        if (mgr != null) {
+            log.warn("Existing DNSCacheManager " + mgr.getName() + " superseded by " + cacheManager.getName());
+        }
+        setProperty(new TestElementProperty(DNS_CACHE_MANAGER, cacheManager));
     }
 
     public boolean isImageParser() {
