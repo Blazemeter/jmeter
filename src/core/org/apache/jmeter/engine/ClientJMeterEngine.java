@@ -106,7 +106,7 @@ public class ClientJMeterEngine implements JMeterEngine {
     @Override
     public void runTest() throws JMeterEngineException {
         log.info("running clientengine run method");
-        
+
         // See https://issues.apache.org/bugzilla/show_bug.cgi?id=55510
         JMeterContextService.clearTotalThreads();
         HashTree testTree = test;
@@ -122,7 +122,7 @@ public class ClientJMeterEngine implements JMeterEngine {
             JMeterContextService.startTest();
             /*
              * Add fix for Deadlocks, see:
-             * 
+             *
              * See https://issues.apache.org/bugzilla/show_bug.cgi?id=48350
             */
             File baseDirRelative = FileServer.getFileServer().getBaseDirRelative();
@@ -196,5 +196,9 @@ public class ClientJMeterEngine implements JMeterEngine {
     @Override
     public boolean isActive() {
         return true;
+    }
+
+    public String getHost() {
+        return host;
     }
 }

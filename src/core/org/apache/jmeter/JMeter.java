@@ -268,7 +268,7 @@ public class JMeter implements JMeterPlugin {
     /**
      * Takes the command line arguments and uses them to determine how to
      * startup JMeter.
-     * 
+     *
      * Called reflectively by {@link NewDriver#main(String[])}
      */
     public void start(String[] args) {
@@ -304,7 +304,7 @@ public class JMeter implements JMeterPlugin {
                         , "org.apache.commons.logging.impl.LogKitLogger"); // $NON-NLS-1$
             }
 
-            Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {                
+            Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
                 @Override
                 public void uncaughtException(Thread t, Throwable e) {
                     if (!(e instanceof ThreadDeath)) {
@@ -786,7 +786,7 @@ public class JMeter implements JMeterPlugin {
                 }
             }
             // Used for remote notification of threads start/stop,see BUG 54152
-            // Summariser uses this feature to compute correctly number of threads 
+            // Summariser uses this feature to compute correctly number of threads
             // when NON GUI mode is used
             tree.add(tree.getArray()[0], new RemoteThreadsListenerTestElement());
 
@@ -815,13 +815,69 @@ public class JMeter implements JMeterPlugin {
                         println("Failed to configure "+el);
                     }
                 }
-                if (engines.isEmpty()) {
-                    println("No remote engines were started.");
-                    return;
-                }
+
+
+                String rmiContinueOnFail = EngineReInitializer.getRmiContinueOnFailName();
+                boolean rmiContinueOnFail_Bool = JMeterUtils.getPropDefault(rmiContinueOnFail, true);
+
+                String rmiRetriesNumberName = EngineReInitializer.getRmiRetriesNumberName();
+
+                String rmiRetriesDelay = EngineReInitializer.getRmiRetriesDelayName();
+
+                String rmiRetriesDelay_Str = String.valueOf(EngineReInitializer.getRmiRetriesDelayValue());
+                String rmiRetriesNumberValue = String.valueOf(EngineReInitializer.getRmiRetriesNumberValue());
+                String rmiContinueOnFail_Str = String.valueOf(rmiContinueOnFail_Bool);
+
                 if(failingEngines.size()>0) {
+                    if (!rmiContinueOnFail_Bool) {
                     throw new IllegalArgumentException("The following remote engines could not be configured:"+failingEngines);
+                    } else {
+                        log.info("Number of failed remote engines: " + failingEngines.size());
+                        log.info(EngineReInitializer.class.getSimpleName() + " parameters:");
+                        log.info(rmiContinueOnFail + "=" + rmiContinueOnFail_Str);
+                        log.info(rmiRetriesDelay + "=" + rmiRetriesDelay_Str);
+                        log.info(rmiRetriesNumberName + "=" + rmiRetriesNumberValue);
+
+                        log.info("Trying to reconnect to failed engines...");
+
+                        int reConSuccessEng = 0;
+                        int attempts = Integer.parseInt(rmiRetriesNumberValue);
+                        for (int i = 1; i <= attempts; i++) {
+                            EngineReInitializer engineReInitializer = new EngineReInitializer(failingEngines, tree, i);
+                            engineReInitializer.start();
+                            engineReInitializer.join();
+                            List<JMeterEngine> jMeterEngineList = engineReInitializer.getEngineList();
+                            if (jMeterEngineList.size() > 0) {
+                                engines.addAll(jMeterEngineList);
+                                reConSuccessEng += jMeterEngineList.size();
+                                for (JMeterEngine engine : jMeterEngineList) {
+                                    failingEngines.remove(((ClientJMeterEngine) engine).getHost());
                 }
+                            }
+                        }
+
+                        if (reConSuccessEng > 0) {
+                            log.info("Successfully re-connected to " + String.valueOf(reConSuccessEng) + " engines");
+                            log.info("Failed to re-connect to " + failingEngines.size() + " engines with " + rmiRetriesNumberValue + " attemts");
+                            if(failingEngines.size()>0){
+                                log.info("List of failed engines: ");
+                                for (String s : failingEngines) {
+                                    log.info(s);
+                                }
+                            }
+                        } else {
+                            log.info("Failed to re-connect to " + failingEngines.size() + " engines with " + rmiRetriesNumberValue + " attemts");
+                            log.info("List of failed engines: ");
+                            for (String s : failingEngines) {
+                                log.info(s);
+                            }
+                            if(engines.size()==0){
+                                return;
+                            }
+                        }
+                    }
+                }
+
                 println("Starting remote engines");
                 log.info("Starting remote engines");
                 long now=System.currentTimeMillis();
@@ -863,7 +919,7 @@ public class JMeter implements JMeterPlugin {
                                 tree.replaceKey(item, rc);
                                 tree.set(rc, replacementTree);
                             }
-                        } 
+                        }
                     } else { // not Replaceable Controller
                         convertSubTree(tree.getTree(item));
                     }
@@ -880,7 +936,7 @@ public class JMeter implements JMeterPlugin {
                         ReplaceableController rc = ensureReplaceableControllerIsLoaded(controllerAsItem);
 
                         HashTree subTree = tree.getTree(item);
-                        
+
                         if (subTree != null) {
                             HashTree replacementTree = rc.getReplacementSubTree();
                             if (replacementTree != null) {
@@ -1015,15 +1071,15 @@ public class JMeter implements JMeterPlugin {
         }
 
         /**
-         * Runs daemon thread which waits a short while; 
+         * Runs daemon thread which waits a short while;
          * if JVM does not exit, lists remaining non-daemon threads on stdout.
          */
         private void checkForRemainingThreads() {
             // This cannot be a JMeter class variable, because properties
             // are not initialised until later.
-            final int REMAIN_THREAD_PAUSE = 
-                    JMeterUtils.getPropDefault("jmeter.exit.check.pause", 2000); // $NON-NLS-1$ 
-            
+            final int REMAIN_THREAD_PAUSE =
+                    JMeterUtils.getPropDefault("jmeter.exit.check.pause", 2000); // $NON-NLS-1$
+
             if (REMAIN_THREAD_PAUSE > 0) {
                 Thread daemon = new Thread(){
                     @Override
@@ -1038,7 +1094,7 @@ public class JMeter implements JMeterPlugin {
                         System.out.println("The following non-daemon threads are still running (DestroyJavaVM is OK):");
                         JOrphanUtils.displayThreads(false);
                     }
-    
+
                 };
                 daemon.setDaemon(true);
                 daemon.start();
@@ -1185,7 +1241,7 @@ public class JMeter implements JMeterPlugin {
                 break;
             } catch (SocketException e) {
                 i++;
-            }            
+            }
         }
 
         return socket;
