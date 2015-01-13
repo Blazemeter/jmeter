@@ -511,13 +511,9 @@
         JMeter version
         This is overridden for formal releases.
     -->
-    <property name="jmeter.version" value="2.12"/>
-    <!-- Remember to change "docversion" below if necessary -->
-    <condition property="implementation.version"
-          value="${jmeter.version} r${svn.revision}" else="${jmeter.version}.${DSTAMP}">
-        <isset property="svn.revision"/>
-    </condition>
-    <property name="display.version" value="${implementation.version}"/>
+    <property name="jmeter.version" value="2.12.BZM"/>
+    <property name="implementation.version" value="${jmeter.version}"/>
+    <property name="display.version" value="${jmeter.version}"/>
     <echo level="info">jmeter.version = ${jmeter.version}</echo>
     <echo level="info">display.version = ${display.version}</echo>
     <echo level="info">implementation.version = ${implementation.version}</echo>
