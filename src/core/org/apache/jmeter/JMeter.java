@@ -251,7 +251,7 @@ public class JMeter implements JMeterPlugin {
     private static final CLOptionDescriptor D_REPORT_GENERATING_OPT =
             new CLOptionDescriptor("reportonly",
                     CLOptionDescriptor.ARGUMENT_REQUIRED, REPORT_GENERATING_OPT,
-                    "generate report dashboard only",
+                    "generate report dashboard only, from a test results file",
                     new CLOptionDescriptor[]{ D_NONGUI_OPT, D_REMOTE_OPT, D_REMOTE_OPT_PARAM, D_LOGFILE_OPT }); // disallowed
     private static final CLOptionDescriptor D_REPORT_AT_END_OPT =
             new CLOptionDescriptor("reportatendofloadtests",
@@ -494,7 +494,8 @@ public class JMeter implements JMeterPlugin {
                     CLOption reportAtEndOpt = parser.getArgumentById(REPORT_AT_END_OPT);
                     if(reportAtEndOpt != null) {
                         if(jtlFile == null) {
-                            throw new IllegalUserActionException("Option -"+REPORT_AT_END_OPT+" requires -"+LOGFILE_OPT + " option");
+                            throw new IllegalUserActionException(
+                                "Option -"+ ((char)REPORT_AT_END_OPT)+" requires -"+((char)LOGFILE_OPT )+ " option");
                         }
                     }
                     startNonGui(testFile, jtlFile, rem, reportAtEndOpt != null);
@@ -1053,7 +1054,7 @@ public class JMeter implements JMeterPlugin {
 
         private final List<JMeterEngine> engines;
 
-        private ReportGenerator reportGenerator;
+        private final ReportGenerator reportGenerator;
 
         /**
          * @param unused JMeter unused for now
@@ -1066,11 +1067,15 @@ public class JMeter implements JMeterPlugin {
         }
 
         @Override
+        // N.B. this is called by a daemon RMI thread from the remote host
         public void testEnded(String host) {
             long now=System.currentTimeMillis();
             log.info("Finished remote host: " + host + " ("+now+")");
             if (started.decrementAndGet() <= 0) {
                 Thread stopSoon = new Thread(this);
+                // the calling thread is a daemon; this thread must not be
+                // see Bug 59391
+                stopSoon.setDaemon(false); 
                 stopSoon.start();
             }
         }
@@ -1079,9 +1084,14 @@ public class JMeter implements JMeterPlugin {
         public void testEnded() {
             long now = System.currentTimeMillis();
             println("Tidying up ...    @ "+new Date(now)+" ("+now+")");
-            println("... end of run");
-            generateReport();
             checkForRemainingThreads();
+            try {
+                generateReport();
+            } catch (Exception e) {
+                System.err.println("Error generating the report: "+e);
+                log.error("Error generating the report",e);
+            }
+            println("... end of run");
         }
 
         @Override
@@ -1109,7 +1119,7 @@ public class JMeter implements JMeterPlugin {
             long now = System.currentTimeMillis();
             println("Tidying up remote @ "+new Date(now)+" ("+now+")");
             if (engines!=null){ // it will be null unless remoteStop = true
-                println("Exitting remote servers");
+                println("Exiting remote servers");
                 for (JMeterEngine e : engines){
                     e.exit();
                 }

@@ -9,7 +9,7 @@
 <!ENTITY hellip   "&#x02026;" >
 ]>
 
-<document prev="regular_expressions.html" next="hints_and_tips.html" id="$Id$">
+<document prev="remote-test.html" next="realtime-results.html" id="$Id$">
     <properties>
         <title>User's Manual: Generating Dashboard Report</title>
     </properties>
@@ -24,6 +24,31 @@
                     CSV files to generate HTML files containing graph views.
                     It can generate the report at end of a load test or on demand.
                 </p>
+                <p>
+                This report provides the following metrics:
+                <ul>
+                    <li><a href="https://en.wikipedia.org/wiki/Apdex" title="Application Performance Index" target="_blank">APDEX</a> (Application Performance Index) table that computes for every transaction the APDEX based on configurable values for tolerated and satisfied thresholds</li>
+                    <li>A request summary graph showing the Success and failed transaction percentage: <figure width="1658" height="650" image="dashboard/report_apdex_and_summary.png" ></figure></li>
+                    <li>A Statistics table providing in one table a summary of all metrics per transaction including 3 configurable percentiles : <figure width="1376" height="433" image="dashboard/report_statistics.png" ></figure></li>
+                    <li>An error table providing a summary of all errors and their proportion in the total requests : <figure width="1344" height="455" image="dashboard/report_errors.png" ></figure></li>
+                    <li>Zoomable chart where you can check/uncheck every transaction to show/hide it for:
+                        <ul>
+                            <li>Response times Over Time : <figure width="1398" height="566" image="dashboard/report_response_times_over_time.png" ></figure></li>
+                            <li>Bytes throughput Over Time : <figure width="1373" height="543" image="dashboard/report_bytes_throughput_over_time.png" ></figure></li>
+                            <li>Latencies Over Time : <figure width="1373" height="547" image="dashboard/report_latencies_over_time.png" ></figure></li>
+                            <li>Hits per second : <figure width="1375" height="552" image="dashboard/report_hits_per_second.png" ></figure></li>
+                            <li>Response codes per second : <figure width="1380" height="558" image="dashboard/report_codes_per_second.png" ></figure></li>
+                            <li>Transactions per second : <figure width="1372" height="577" image="dashboard/report_transactions_per_second.png" ></figure></li>
+                            <li>Response Time vs Request per second : <figure width="1380" height="545" image="dashboard/report_response_time_vs_request.png" ></figure></li>
+                            <li>Latency vs Request per second : <figure width="1373" height="543" image="dashboard/report_latencies_vs_request.png" ></figure></li>
+                            <li>Response times percentiles : <figure width="1374" height="551" image="dashboard/report_response_time_percentiles.png" ></figure></li>
+                            <li>Active Threads Over Time : <figure width="1370" height="542" image="dashboard/report_active_threads_over_time.png" ></figure></li>
+                            <li>Times vs Threads : <figure width="1373" height="567" image="dashboard/report_time_vs_threads.png" ></figure></li>
+                            <li>Response Time Distribution : <figure width="1373" height="549" image="dashboard/report_response_time_distribution.png" ></figure></li>
+                        </ul>
+                    </li>
+                </ul>
+                </p>
                 <!-- <p> It is designed to support different way of data exportation, if Html files are not relevant. </p> -->
             </subsection>
             <subsection name="&sect-num;.2 Configuring Dashboard Generation" anchor="configuration">
@@ -31,13 +56,14 @@
                     Dashboard generation uses JMeter properties to customize the
                     report. Some properties are used for general settings and others are
                     used for a particular graph configuration or exporter configuration.
-                    <note>All these properties should be set in <code>user.properties</code> file.</note>
+                    <note>All report generator properties can be found in file <code>reportgenerator.properties</code>.
+                    To customize these properties, you should copy them in <code>user.properties</code> file and modify them.</note>
                 </p>
                 <subsection name="&sect-num;.2.1 Requirements" anchor="configuration_requirements">
                     <p>
                         To enable the generator to operate, the input CSV files
-                        must include required data. Check that your JMeter
-                        configuration follows these settings:
+                        must include certain required data. Check that your JMeter
+                        configuration follows these settings (these are the defaults):
                         <source>
 jmeter.save.saveservice.bytes = true
 jmeter.save.saveservice.label = true
@@ -48,10 +74,14 @@ jmeter.save.saveservice.successful = true
 jmeter.save.saveservice.thread_counts = true
 jmeter.save.saveservice.thread_name = true
 jmeter.save.saveservice.time = true
-jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other format)
+# the timestamp format must include the time and should include the date.
+# For example the default, which is milliseconds since the epoch: 
+jmeter.save.saveservice.timestamp_format = ms
+# Or the following would also be suitable
+jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss
                         </source>
                         <note>
-                            Property <code>jmeter.save.saveservice.timestamp_format</code> must be set
+                            The input CSV file must include the timeStamp
                         </note>
                         <note>
                             The "<code>Errors</code>" summary table shows more
@@ -74,7 +104,15 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                         <source>jmeter.reportgenerator.</source>
                     </note>
                     <properties>
-                        <property name="apdex_statisfied_threshold" required="No">
+                        <property name="report_title" required="No">
+                            Title used in the generated report. 
+                            Default: "Apache JMeter Dashboard"
+                        </property>
+                        <property name="overall_granularity" required="No">
+                            Granularity of over time graphs. Data is aggregated to have 1 minute ticks. 
+                            Default: "60000" (1 minute)
+                        </property>
+                        <property name="apdex_satisfied_threshold" required="No">
                             Sets the satisfaction threshold for the
                             <a href="https://en.wikipedia.org/wiki/Apdex" target="_blank">APDEX</a>
                             calculation (in ms).
@@ -89,8 +127,8 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                             Sets the filter of samples to keep for generating
                             graphs and statistics. An empty value deactivates the
                             filtering.
-                            Format: comma separated list of
-                            sample names. Default: ""
+                            Format: Regular expression. 
+                            Default: ""
                         </property>
                         <property name="temp_dir" required="No">
                             Sets the temporary directory used by the generation
@@ -104,7 +142,13 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                             Default: <code>200000</code>
                         </property>
                     </properties>
-
+                    <note>Percentiles used by Summary table and Percentile graphs can be adjusted to different values by using the 3 properties:
+                    <ul>
+                        <li>aggregate_rpt_pct1 : Defaults to 90</li>
+                        <li>aggregate_rpt_pct2 : Defaults to 95</li>
+                        <li>aggregate_rpt_pct3 : Defaults to 99</li>
+                    </ul>
+                    </note>
                     <note>Relative paths are built from the JMeter working directory
                         (default: <code>bin</code>).</note>
 
@@ -114,7 +158,7 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                             generator configuration.  These properties are freely named
                             but you should use the prefix
                             <source>jmeter.reportgenerator.</source>
-                            in order to avoid properties overlap.
+                            in order to avoid property overlap.
                         </p>
                         <p>
                             E.g.:
@@ -200,9 +244,10 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                             <property name="filters_only_sample_series" required="No">
                                 Defines whether <code>series_filter</code> (see below)
                                 apply only on sample series.
-                                Default: <code>false</code></property>
+                                Default: <code>true</code></property>
                             <property name="series_filter" required="No">Sets the filter
                                 of series. An empty value deactivates the filtering.
+                                If not empty, regex should end with <code>(-success|-failure)?</code><br/>
                                 Format: regular expression.
                                 Default: ""
                             </property>
@@ -256,7 +301,7 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                             <a href="#configure_general">General properties</a>
                             which discards data before calculations, here the
                             filtering is performed after the calculations and serves
-                            to lighten the final report.
+                            to simplify the final report.
                         </p>
                         <p>
                             The property <code>series_filter</code>
@@ -386,13 +431,13 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                             </table>
                         </p>
                         <note>
-                            A wrong filtering configuration can lead to generate empty
+                            Incorrect filter configuration can lead to generate empty
                             graphs/summary tables:
                             <ul>
                                 <li>
                                     If you set the property
                                     <code>show_controllers_only</code>
-                                    whereas the graph is configured to exclude
+                                    and the graph is configured to exclude
                                     controllers.
                                 </li>
                                 <li>
@@ -407,14 +452,21 @@ jmeter.save.saveservice.timestamp_format = yyyy/MM/dd HH:mm:ss (or any other for
                 </subsection>
 
                 <subsection name="&sect-num;.2.5 Sample configuration" anchor="sample_configuration">
-                    <p>You can copy the following configuration in your user.properties
+                    <p>You can copy the following configuration to your user.properties
                         file in order to test the report generator.</p>
                     <source>
+# Configure this property to change the report title
+#jmeter.reportgenerator.report_title=Apache JMeter Dashboard
+
 # Change this parameter if you want to change the granularity of over time graphs.
-jmeter.reportgenerator.overall_granularity=60000
+#jmeter.reportgenerator.overall_granularity=60000
+
+ Change this parameter if you want to change the granularity of Response time distribution
+# Set to 500 ms by default
+#jmeter.reportgenerator.graph.responseTimeDistribution.property.set_granularity=500
 
 # Change this parameter if you want to override the APDEX satisfaction threshold.
-jmeter.reportgenerator.apdex_statisfied_threshold=1500
+jmeter.reportgenerator.apdex_satisfied_threshold=1500
 
 # Change this parameter if you want to override the APDEX tolerance threshold.
 jmeter.reportgenerator.apdex_tolerated_threshold=3000
@@ -424,11 +476,11 @@ jmeter.reportgenerator.apdex_tolerated_threshold=3000
 # jmeter.reportgenerator.exporter.html.property.output_dir=/tmp/test-report
 
 # Indicates which graph series are filtered (regular expression)
-# In the below example we filter on Sample1 and Sample2
+# In the below example we filter on Search and Order samples
 # Note that the end of the pattern should always include (-success|-failure)? 
 # Transactions per second suffixes Transactions with "-success" or "-failure" depending 
 # on the result
-jmeter.reportgenerator.exporter.html.series_filter=((^s0)|(^s1))(-success|-failure)?
+#jmeter.reportgenerator.exporter.html.series_filter=((^Search)|(^Order))(-success|-failure)?
 
 # Indicates whether series filter apply only on sample series
 jmeter.reportgenerator.exporter.html.filters_only_sample_series=true
@@ -441,7 +493,7 @@ jmeter.reportgenerator.exporter.html.filters_only_sample_series=true
                     <p>
                         This configuration allows to generate a report where:
                         <ul>
-                            <li>Over time graphs have a time granularity equals to 1 minute.</li>
+                            <li>Over time graphs have a time granularity equal to 1 minute.</li>
                             <li>The satisfaction threshold for ADPEX calculation is 1 second and half.</li>
                             <li>The tolerance threshold for ADPEX calculation is 3 seconds.</li>
                             <li>The HTML files are generated in the directory <code>/tmp/test-report</code>.</li>
@@ -459,7 +511,7 @@ jmeter.reportgenerator.exporter.html.filters_only_sample_series=true
                     sample log file or automatically after running load test.
                 </p>
 
-                <subsection name="&sect-num;.3.1 Generation from an existing sample log file" anchor="report_only">
+                <subsection name="&sect-num;.3.1 Generation from an existing sample CSV log file" anchor="report_only">
                     <p>
                         Use the following command:
                         <source>jmeter -g &lt;log file&gt; -o &lt;Path to output folder&gt;</source>
@@ -476,7 +528,7 @@ jmeter.reportgenerator.exporter.html.filters_only_sample_series=true
 
             <subsection name="&sect-num;.4 Default graphs" anchor="default_graphs">
                 <note>Due to limitations of this early version, each default graph
-                    must be declared among the JMeter properties. Otherwise, the graph
+                    must be declared in JMeter properties. Otherwise, the graph
                     views will be empty.</note>
 
                 <p>
@@ -545,12 +597,6 @@ jmeter.reportgenerator.exporter.html.filters_only_sample_series=true
                             <td>True</td>
                         </tr>
                         <tr>
-                            <td>ResponseTimePerSampleGraphConsumer</td>
-                            <td>This graph represents the median and average response time
-                                per sample name.</td>
-                            <td>False</td>
-                        </tr>
-                        <tr>
                             <td>ResponseTimeVSRequestGraphConsumer</td>
                             <td>This graph represents the median and average response time
                                 depending on the number of current requests.</td>
@@ -591,7 +637,7 @@ jmeter.reportgenerator.exporter.html.filters_only_sample_series=true
                     </tbody>
                 </table>
             </subsection>
-            <subsection name="&sect-num;.5  Want to improve Report Dashboard" anchor="development">
+            <subsection name="&sect-num;.5  Want to improve Report Dashboard ?" anchor="development">
             If you want to contribute new graphs or improve current ones, you
             can read this <a href="../devguide-dashboard.html" >developer documentation</a>.<br/>
             Read this <a href="../building.html" >documentation</a> on contributing.

@@ -500,7 +500,7 @@ public final class JOrphanUtils {
     /**
      * Display currently running threads on system.out
      * This may be expensive to run.
-     * Mainly designed for use at the end of a non-GUI test to check for threads that might prevent the JVM from exitting.
+     * Mainly designed for use at the end of a non-GUI test to check for threads that might prevent the JVM from exiting.
      *
      * @param includeDaemons whether to include daemon threads or not.
      */
@@ -603,7 +603,7 @@ public final class JOrphanUtils {
             }
         } else {
             // check we can create it
-            if(!folder.getParentFile().canWrite()) {
+            if(!folder.getAbsoluteFile().getParentFile().canWrite()) {
                 throw new IllegalArgumentException("Cannot write to '"
                         +folder.getAbsolutePath()+"' as folder does not exist and parent folder is not writable");
             }

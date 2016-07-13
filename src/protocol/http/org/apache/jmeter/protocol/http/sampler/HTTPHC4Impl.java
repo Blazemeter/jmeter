@@ -59,6 +59,7 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.CookieSpecs;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
@@ -185,6 +186,58 @@ public class HTTPHC4Impl extends HTTPHCAbstractImpl {
         }
     };
 
+
+    /**
+     * Headers to save
+     */
+    private static final String[] HEADERS_TO_SAVE = new String[]{
+                    "content-length",
+                    "content-encoding",
+                    "content-md5"
+            };
+    
+    /**
+     * Custom implementation that backups headers related to Compressed responses 
+     * that HC core {@link ResponseContentEncoding} removes after uncompressing
+     * See Bug 59401
+     */
+    private static final HttpResponseInterceptor RESPONSE_CONTENT_ENCODING = new ResponseContentEncoding() {
+        @Override
+        public void process(HttpResponse response, HttpContext context)
+                throws HttpException, IOException {
+            ArrayList<Header[]> headersToSave = null;
+            
+            final HttpEntity entity = response.getEntity();
+            final HttpClientContext clientContext = HttpClientContext.adapt(context);
+            final RequestConfig requestConfig = clientContext.getRequestConfig();
+            // store the headers if necessary
+            if (requestConfig.isContentCompressionEnabled() && entity != null && entity.getContentLength() != 0) {
+                final Header ceheader = entity.getContentEncoding();
+                if (ceheader != null) {
+                    headersToSave = new ArrayList<>(3);
+                    for(String name : HEADERS_TO_SAVE) {
+                        Header[] hdr = response.getHeaders(name); // empty if none
+                        headersToSave.add(hdr);
+                    }
+                }
+            }
+
+            // Now invoke original parent code
+            super.process(response, clientContext);
+            // Should this be in a finally ? 
+            if(headersToSave != null) {
+                for (Header[] headers : headersToSave) {
+                    for (Header headerToRestore : headers) {
+                        if (response.containsHeader(headerToRestore.getName())) {
+                            break;
+                        }
+                        response.addHeader(headerToRestore);
+                    }
+                }
+            }
+        }
+    };
+    
     /**
      * 1 HttpClient instance per combination of (HttpClient,HttpClientKey)
      */
@@ -357,7 +410,7 @@ public class HTTPHC4Impl extends HTTPHCAbstractImpl {
             res.setResponseMessage(statusLine.getReasonPhrase());
             res.setSuccessful(isSuccessCode(statusCode));
 
-            res.setResponseHeaders(getResponseHeaders(httpResponse));
+            res.setResponseHeaders(getResponseHeaders(httpResponse, localContext));
             if (res.isRedirect()) {
                 final Header headerLocation = httpResponse.getLastHeader(HTTPConstants.HEADER_LOCATION);
                 if (headerLocation == null) { // HTTP protocol violation, but avoids NPE
@@ -750,7 +803,7 @@ public class HTTPHC4Impl extends HTTPHCAbstractImpl {
             }
             // see https://issues.apache.org/jira/browse/HTTPCORE-397
             ((AbstractHttpClient) httpClient).setReuseStrategy(DefaultClientConnectionReuseStrategy.INSTANCE);
-            ((AbstractHttpClient) httpClient).addResponseInterceptor(new ResponseContentEncoding());
+            ((AbstractHttpClient) httpClient).addResponseInterceptor(RESPONSE_CONTENT_ENCODING);
             ((AbstractHttpClient) httpClient).addResponseInterceptor(METRICS_SAVER); // HACK
             ((AbstractHttpClient) httpClient).addRequestInterceptor(METRICS_RESETTER); 
             
@@ -894,21 +947,32 @@ public class HTTPHC4Impl extends HTTPHCAbstractImpl {
      *
      * @param response
      *            containing the headers
+     * @param localContext {@link HttpContext}
      * @return string containing the headers, one per line
      */
-    private String getResponseHeaders(HttpResponse response) {
+    private String getResponseHeaders(HttpResponse response, HttpContext localContext) {
         StringBuilder headerBuf = new StringBuilder();
-        Header[] rh = response.getAllHeaders();
         headerBuf.append(response.getStatusLine());// header[0] is not the status line...
         headerBuf.append("\n"); // $NON-NLS-1$
 
+        Header[] rh = response.getAllHeaders();
         for (Header responseHeader : rh) {
-            headerBuf.append(responseHeader.getName());
-            headerBuf.append(": "); // $NON-NLS-1$
-            headerBuf.append(responseHeader.getValue());
-            headerBuf.append("\n"); // $NON-NLS-1$
+            writeResponseHeader(headerBuf, responseHeader);
         }
         return headerBuf.toString();
+    }
+
+    /**
+     * Write responseHeader to headerBuffer
+     * @param headerBuffer {@link StringBuilder}
+     * @param responseHeader {@link Header}
+     */
+    private void writeResponseHeader(StringBuilder headerBuffer,
+            Header responseHeader) {
+        headerBuffer.append(responseHeader.getName())
+            .append(": ") // $NON-NLS-1$
+            .append(responseHeader.getValue())
+            .append("\n"); // $NON-NLS-1$
     }
 
     /**
@@ -1016,10 +1080,7 @@ public class HTTPHC4Impl extends HTTPHCAbstractImpl {
             for (Header requestHeader : requestHeaders) {
                 // Exclude the COOKIE header, since cookie is reported separately in the sample
                 if (!HTTPConstants.HEADER_COOKIE.equalsIgnoreCase(requestHeader.getName())) {
-                    hdrs.append(requestHeader.getName());
-                    hdrs.append(": "); // $NON-NLS-1$
-                    hdrs.append(requestHeader.getValue());
-                    hdrs.append("\n"); // $NON-NLS-1$
+                    writeResponseHeader(hdrs, requestHeader);
                 }
             }
     

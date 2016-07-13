@@ -195,8 +195,16 @@ public final class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteO
      */
     @Override
     public void rexit() throws RemoteException {
-        log.info("Exitting");
-        backingEngine.exit();
+        log.info("Exiting");
+        // Bug 59400 - allow rexit() to return
+        Thread et = new Thread() {
+            @Override
+            public void run() {
+                log.info("Stopping the backing engine");
+                backingEngine.exit();
+            }  
+        };
+        et.setDaemon(false);
         // Tidy up any objects we created
         Registry reg = LocateRegistry.getRegistry(this.rmiPort);        
         try {
@@ -207,6 +215,7 @@ public final class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteO
         log.info("Unbound from registry");
         // Help with garbage control
         JMeterUtils.helpGC();
+        et.start();
     }
 
     @Override

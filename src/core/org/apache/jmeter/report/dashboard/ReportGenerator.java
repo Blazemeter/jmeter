@@ -18,11 +18,12 @@
 package org.apache.jmeter.report.dashboard;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -67,6 +68,8 @@ import org.apache.log.Logger;
  * @since 3.0
  */
 public class ReportGenerator {
+    private static final String REPORTGENERATOR_PROPERTIES = "reportgenerator.properties";
+
     private static final Logger LOG = LoggingManager.getLoggerForClass();
 
     private static final boolean CSV_OUTPUT_FORMAT = "csv"
@@ -136,8 +139,28 @@ public class ReportGenerator {
         }
         this.resultCollector = resultCollector;
         this.testFile = file;
-        configuration = ReportGeneratorConfiguration
-                .loadFromProperties(JMeterUtils.getJMeterProperties());
+        final Properties merged = new Properties();
+        File rgp = new File(JMeterUtils.getJMeterBinDir(), REPORTGENERATOR_PROPERTIES);
+        if(LOG.isInfoEnabled()) {
+            LOG.info("Reading report generator properties from:"+rgp.getAbsolutePath());
+        }
+        merged.putAll(loadProps(rgp));
+        if(LOG.isInfoEnabled()) {
+            LOG.info("Merging with JMeter properties");
+        }
+        merged.putAll(JMeterUtils.getJMeterProperties());
+        configuration = ReportGeneratorConfiguration.loadFromProperties(merged);
+    }
+
+    private static Properties loadProps(File file) {
+        final Properties props = new Properties();
+        try (FileInputStream inStream = new FileInputStream(file)) {
+            props.load(inStream);
+        } catch (IOException e) {
+            LOG.error("Problem loading properties from file ", e);
+            System.err.println("Problem loading properties " + e);
+        }
+        return props;
     }
 
     /**
@@ -392,12 +415,12 @@ public class ReportGenerator {
             @Override
             public boolean matches(Sample sample) {
                 // Get filtered samples from configuration
-                List<String> filteredSamples = configuration
-                        .getFilteredSamples();
-                // Sample is kept if none filter is set or if the filter
-                // contains its name
-                return filteredSamples.isEmpty()
-                        || filteredSamples.contains(sample.getName());
+                Pattern filteredSamplesPattern = configuration
+                        .getFilteredSamplesPattern();
+                // Sample is kept if no filter is set 
+                // or if its name matches the filter pattern
+                return filteredSamplesPattern == null 
+                        || filteredSamplesPattern.matcher(sample.getName()).matches();
             }
         });
         nameFilter.addSampleConsumer(createApdexSummaryConsumer());
