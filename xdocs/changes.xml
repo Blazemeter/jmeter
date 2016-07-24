@@ -84,6 +84,8 @@ Summary
 
 <h3>Other samplers</h3>
 <ul>
+    <li><pr>211</pr>Differentiate the timing for JDBC Sampler. Use latency and connect time.
+    Contributed by Thomas Peyrard (thomas.peyrard at murex.com)</li>
 </ul>
 
 <h3>Controllers</h3>
@@ -99,6 +101,9 @@ Summary
 <ul>
     <li><bug>59609</bug>Format extracted JSON Objects in JSON Post Processor correctly as JSON.</li>
     <li><bug>59845</bug>Log messages about JSON Path mismatches at <code>debug</code> level instead of <code>error</code>.</li>
+    <li><pr>212</pr>Allow multiple selection and delete in HTTP Authorization Manager. Based on a patch by Benoit Wiart (b.wiart at ubik-ingenierie.com)</li>
+    <li><bug>59816</bug><pr>213</pr>Allow multiple selection and delete in HTTP Header Manager.
+    Based on a patch by Benoit Wiart (b.wiart at ubik-ingenierie.com)</li>
 </ul>
 
 <h3>Functions</h3>
@@ -107,7 +112,7 @@ Summary
 
 <h3>I18N</h3>
 <ul>
-    <li>PR 214. Add spanish translation for delayed starting of threads. Contributed by Asier Lostalé.</li>
+    <li><pr>214</pr>Add spanish translation for delayed starting of threads. Contributed by Asier Lostalé (asier.lostale at openbravo.com).</li>
 </ul>
 
 <h3>General</h3>
@@ -118,7 +123,10 @@ Summary
 
 <ch_section>Non-functional changes</ch_section>
 <ul>
-<li>Updated to tika-core and tika-parsers 1.13 (from 1.12)</li>
+    <li>Updated to tika-core and tika-parsers 1.13 (from 1.12)</li>
+    <li><pr>215</pr>Reduce duplicated code by using the newly added method <code>GuiUtils#cancelEditing</code>.
+    Contributed by Benoit Wiart (b.wiart at ubik-ingenierie.com)</li>
+    <li><pr>218</pr>Misc cleanup. Contributed by Benoit Wiart (b.wiart at ubik-ingenierie.com)</li>
 </ul>
  
  <!-- =================== Bug fixes =================== -->
@@ -179,7 +187,9 @@ Summary
 <li>Antonio Gomes Rodrigues (ra0077 at gmail.com)</li>
 <li>Graham Russell (graham at ham1.co.uk)</li>
 <li>Teemu Vesala (teemu.vesala at qentinel.com)</li>
-<li>Asier Lostalé</li>
+<li>Asier Lostalé (asier.lostale at openbravo.com)</li>
+<li>Thomas Peyrard (thomas.peyrard at murex.com)</li>
+<li>Benoit Wiart (b.wiart at ubik-ingenierie.com)</li>
 </ul>
 <p>We also thank bug reporters who helped us improve JMeter. <br/>
 For this release we want to give special thanks to the following reporters for the clear reports and tests made after our fixes:</p>
